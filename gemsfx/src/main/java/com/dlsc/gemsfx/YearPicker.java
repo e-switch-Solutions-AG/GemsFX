@@ -1,10 +1,13 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.YearPickerSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.css.PseudoClass;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Skin;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -12,7 +15,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import javafx.util.converter.NumberStringConverter;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.text.DecimalFormat;
 import java.text.ParsePosition;
@@ -36,6 +39,11 @@ public class YearPicker extends CustomComboBox<Year> {
      */
     public YearPicker() {
         getStyleClass().setAll("year-picker", "text-input");
+        AccessibilityUtil.setRole(this, AccessibleRole.COMBO_BOX);
+        AccessibilityUtil.bindAccessibleText(this, Bindings.createStringBinding(() -> {
+            Year year = getValue();
+            return year == null ? null : year.toString();
+        }, valueProperty()));
 
         setFocusTraversable(false);
         setEditable(true);
@@ -73,7 +81,8 @@ public class YearPicker extends CustomComboBox<Year> {
             }
         });
 
-        setMaxWidth(Region.USE_PREF_SIZE);
+        setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
         // call last
         setValue(Year.now());
@@ -88,6 +97,11 @@ public class YearPicker extends CustomComboBox<Year> {
         return editor;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new YearPickerSkin(this);
@@ -110,6 +124,11 @@ public class YearPicker extends CustomComboBox<Year> {
         return yearView;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(YearMonthView.class.getResource("year-picker.css")).toExternalForm();
@@ -117,6 +136,11 @@ public class YearPicker extends CustomComboBox<Year> {
 
     private final ReadOnlyObjectWrapper<Integer> year = new ReadOnlyObjectWrapper<>(this, "year");
 
+    /**
+     * A read-only property storing the selected year value.
+     *
+     * @return the selected year property
+     */
     public final ReadOnlyObjectProperty<Integer> yearProperty() {
         return year.getReadOnlyProperty();
     }
@@ -158,6 +182,9 @@ public class YearPicker extends CustomComboBox<Year> {
 
     static class NumberStringFilteredConverter extends NumberStringConverter {
 
+        /**
+         * Constructs a new converter that only accepts up to four digits.
+         */
         public NumberStringFilteredConverter() {
             super(new DecimalFormat("####"));
         }

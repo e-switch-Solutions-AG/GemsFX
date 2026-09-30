@@ -1,6 +1,7 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.PhotoViewSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -10,7 +11,17 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.MapChangeListener;
+import javafx.css.CssMetaData;
 import javafx.css.PseudoClass;
+import javafx.css.Styleable;
+import javafx.css.StyleableBooleanProperty;
+import javafx.css.StyleableDoubleProperty;
+import javafx.css.StyleableObjectProperty;
+import javafx.css.StyleableProperty;
+import javafx.css.converter.BooleanConverter;
+import javafx.css.converter.EnumConverter;
+import javafx.css.converter.SizeConverter;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Control;
@@ -30,16 +41,19 @@ import org.kordamp.ikonli.materialdesign.MaterialDesign;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * The photo view is mostly used to display a user profile picture.
- * <h3>Features</h3>
+ * <h2>Features</h2>
  * <ul>
  *     <li>control can be used as read-only view or as an editor (see {@link #editableProperty()})</li>
  *     <li>picture can moved around by dragging it</li>
@@ -55,6 +69,17 @@ import java.util.logging.Logger;
  *     <li>an effect can be applied directly to the image (see {@link #photoEffectProperty()})</li>
  * </ul>
  * <b>Note: the values for the zoom and translate properties will all be reset when a new photo is set.</b>
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-clip-shape}</td><td>{@code ClipShape}</td><td>The clip shape for the photo.</td></tr>
+ *     <tr><td>{@code -fx-editable}</td><td>{@code Boolean}</td><td>Whether the view is editable.</td></tr>
+ *     <tr><td>{@code -fx-max-zoom}</td><td>{@code Double}</td><td>The maximum zoom level allowed.</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class PhotoView extends Control {
 
@@ -64,8 +89,17 @@ public class PhotoView extends Control {
 
     private static final String[] SUPPORTED_EXTENSIONS = {".bmp", ".png", ".gif", ".jpg", ".jpeg"};
 
+    /**
+     * Defines the shape used to clip the displayed photo.
+     */
     public enum ClipShape {
+        /**
+         * Clips the photo to a circle.
+         */
         CIRCLE,
+        /**
+         * Clips the photo to a rectangle.
+         */
         RECTANGLE
     }
 
@@ -76,6 +110,7 @@ public class PhotoView extends Control {
      */
     public PhotoView() {
         getStyleClass().add("photo-view");
+        AccessibilityUtil.setRole(this, AccessibleRole.IMAGE_VIEW, ResourceBundleManager.getString(ResourceBundleManager.BundleType.PHOTO_VIEW, "accessible.role-description", "photo"));
 
         setFocusTraversable(true);
 
@@ -92,7 +127,7 @@ public class PhotoView extends Control {
         FontIcon fontIcon = new FontIcon(MaterialDesign.MDI_UPLOAD);
         fontIcon.getStyleClass().add("upload-icon");
 
-        Label placeholder = new Label("DROP IMAGE FILE\nOR CLICK TO ADD");
+        Label placeholder = new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.PHOTO_VIEW, "placeholder.drop-or-click", "DROP IMAGE FILE\nOR CLICK TO ADD"));
         placeholder.setTextAlignment(TextAlignment.CENTER);
         placeholder.setGraphic(fontIcon);
         placeholder.setContentDisplay(ContentDisplay.TOP);
@@ -102,9 +137,9 @@ public class PhotoView extends Control {
         setPhotoSupplier(() -> {
             if (fileChooser == null) {
                 fileChooser = new FileChooser();
-                fileChooser.setTitle("Load Image File");
+                fileChooser.setTitle(ResourceBundleManager.getString(ResourceBundleManager.BundleType.PHOTO_VIEW, "file-chooser.title.load-image", "Load Image File"));
 
-                ExtensionFilter imageFileFilter = new ExtensionFilter("Image Files", "*.png", "*.gif", "*.jpg", "*.jpeg");
+                ExtensionFilter imageFileFilter = new ExtensionFilter(ResourceBundleManager.getString(ResourceBundleManager.BundleType.PHOTO_VIEW, "file-chooser.filter.image-files", "Image Files"), "*.png", "*.gif", "*.jpg", "*.jpeg");
                 fileChooser.getExtensionFilters().add(imageFileFilter);
                 fileChooser.setSelectedExtensionFilter(imageFileFilter);
             }
@@ -207,20 +242,19 @@ public class PhotoView extends Control {
 
     // cropped image support
 
-    public final BooleanProperty createCroppedImage = new SimpleBooleanProperty(this, "createCroppedImage", true);
-
-    public final boolean isCreateCroppedImage() {
-        return createCroppedImage.get();
-    }
-
     /**
      * Specifies whether the view should constantly create a cropped image version of the
      * original image whenever the user edits the original. Creating a cropped image can have
      * a performance impact on slower hardware (e.g. embedded).
      *
      * @see #croppedImageProperty()
-     * @return true if the view should create the cropped image
      */
+    public final BooleanProperty createCroppedImage = new SimpleBooleanProperty(this, "createCroppedImage", true);
+
+    public final boolean isCreateCroppedImage() {
+        return createCroppedImage.get();
+    }
+
     public final BooleanProperty createCroppedImageProperty() {
         return createCroppedImage;
     }
@@ -293,7 +327,22 @@ public class PhotoView extends Control {
 
     // editable support
 
-    private final BooleanProperty editable = new SimpleBooleanProperty(this, "editable", true);
+    private final BooleanProperty editable = new StyleableBooleanProperty(true) {
+        @Override
+        public Object getBean() {
+            return PhotoView.this;
+        }
+
+        @Override
+        public String getName() {
+            return "editable";
+        }
+
+        @Override
+        public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+            return StyleableProperties.EDITABLE;
+        }
+    };
 
     public final boolean isEditable() {
         return editable.get();
@@ -304,6 +353,11 @@ public class PhotoView extends Control {
      * the control will display a slider below the photo for zooming. The user will also
      * be able to zoom in via pinch zoom or scroll wheel. Via mouse dragging the user can
      * move the photo around.
+     * <p>
+     * Can be set via CSS using the {@code -fx-editable} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code true}.
+     * </p>
      *
      * @return "true" if the view is editable
      */
@@ -319,7 +373,7 @@ public class PhotoView extends Control {
 
     private final ObjectProperty<Supplier<Image>> photoSupplier = new SimpleObjectProperty<>(this, "photoSupplier");
 
-    public Supplier<Image> getPhotoSupplier() {
+    public final Supplier<Image> getPhotoSupplier() {
         return photoSupplier.get();
     }
 
@@ -330,33 +384,53 @@ public class PhotoView extends Control {
      *
      * @return the photo supplier
      */
-    public ObjectProperty<Supplier<Image>> photoSupplierProperty() {
+    public final ObjectProperty<Supplier<Image>> photoSupplierProperty() {
         return photoSupplier;
     }
 
-    public void setPhotoSupplier(Supplier<Image> photoSupplier) {
+    public final void setPhotoSupplier(Supplier<Image> photoSupplier) {
         this.photoSupplier.set(photoSupplier);
     }
 
     // clip shape support
 
-    private final ObjectProperty<ClipShape> clipShape = new SimpleObjectProperty<>(this, "clipShape", ClipShape.CIRCLE);
+    private final ObjectProperty<ClipShape> clipShape = new StyleableObjectProperty<>(ClipShape.CIRCLE) {
+        @Override
+        public Object getBean() {
+            return PhotoView.this;
+        }
 
-    public ClipShape getClipShape() {
+        @Override
+        public String getName() {
+            return "clipShape";
+        }
+
+        @Override
+        public CssMetaData<? extends Styleable, ClipShape> getCssMetaData() {
+            return StyleableProperties.CLIP_SHAPE;
+        }
+    };
+
+    public final ClipShape getClipShape() {
         return clipShape.get();
     }
 
     /**
      * The clip shape determines whether the control will clip the photo via a circle
      * or a rectangle shape.
+     * <p>
+     * Can be set via CSS using the {@code -fx-clip-shape} property.
+     * Valid values are: {@code CIRCLE}, {@code RECTANGLE}.
+     * The default value is {@code CIRCLE}.
+     * </p>
      *
      * @return the clip shape (circle, rectangle)
      */
-    public ObjectProperty<ClipShape> clipShapeProperty() {
+    public final ObjectProperty<ClipShape> clipShapeProperty() {
         return clipShape;
     }
 
-    public void setClipShape(ClipShape clipShape) {
+    public final void setClipShape(ClipShape clipShape) {
         this.clipShape.set(clipShape);
     }
 
@@ -451,7 +525,22 @@ public class PhotoView extends Control {
 
     // max zoom
 
-    private final DoubleProperty maxZoom = new SimpleDoubleProperty(this, "maxZoom", 5);
+    private final DoubleProperty maxZoom = new StyleableDoubleProperty(5.0) {
+        @Override
+        public Object getBean() {
+            return PhotoView.this;
+        }
+
+        @Override
+        public String getName() {
+            return "maxZoom";
+        }
+
+        @Override
+        public CssMetaData<? extends Styleable, Number> getCssMetaData() {
+            return StyleableProperties.MAX_ZOOM;
+        }
+    };
 
     public final double getMaxZoom() {
         return maxZoom.get();
@@ -459,9 +548,13 @@ public class PhotoView extends Control {
 
     /**
      * Stores the maximum amount that the user will be allowed to zoom into the view.
-     * The default value is 5.
+     * <p>
+     * Can be set via CSS using the {@code -fx-max-zoom} property.
+     * Valid values are: any positive double value.
+     * The default value is {@code 5.0}.
+     * </p>
      *
-     * @return the maximum zoom value (default 5)
+     * @return the maximum zoom value (default 5.0)
      */
     public final DoubleProperty maxZoomProperty() {
         return maxZoom;
@@ -469,5 +562,69 @@ public class PhotoView extends Control {
 
     public final void setMaxZoom(double maxZoom) {
         this.maxZoom.set(maxZoom);
+    }
+
+    private static class StyleableProperties {
+
+        private static final CssMetaData<PhotoView, Boolean> EDITABLE =
+                new CssMetaData<>("-fx-editable", BooleanConverter.getInstance(), true) {
+                    @Override
+                    public boolean isSettable(PhotoView control) {
+                        return !control.editable.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Boolean> getStyleableProperty(PhotoView control) {
+                        return (StyleableProperty<Boolean>) control.editableProperty();
+                    }
+                };
+
+        private static final CssMetaData<PhotoView, ClipShape> CLIP_SHAPE =
+                new CssMetaData<>("-fx-clip-shape", new EnumConverter<>(ClipShape.class), ClipShape.CIRCLE) {
+                    @Override
+                    public boolean isSettable(PhotoView control) {
+                        return !control.clipShape.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<ClipShape> getStyleableProperty(PhotoView control) {
+                        return (StyleableProperty<ClipShape>) control.clipShapeProperty();
+                    }
+                };
+
+        private static final CssMetaData<PhotoView, Number> MAX_ZOOM =
+                new CssMetaData<>("-fx-max-zoom", SizeConverter.getInstance(), 5.0) {
+                    @Override
+                    public boolean isSettable(PhotoView control) {
+                        return !control.maxZoom.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Number> getStyleableProperty(PhotoView control) {
+                        return (StyleableProperty<Number>) control.maxZoomProperty();
+                    }
+                };
+
+        private static final List<CssMetaData<? extends Styleable, ?>> STYLEABLES;
+
+        static {
+            final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(Control.getClassCssMetaData());
+            Collections.addAll(styleables, EDITABLE, CLIP_SHAPE, MAX_ZOOM);
+            STYLEABLES = Collections.unmodifiableList(styleables);
+        }
+    }
+
+    @Override
+    protected List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
+        return getClassCssMetaData();
+    }
+
+    /**
+     * Returns the CSS metadata for this class.
+     *
+     * @return the CSS metadata for this class
+     */
+    public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
+        return StyleableProperties.STYLEABLES;
     }
 }

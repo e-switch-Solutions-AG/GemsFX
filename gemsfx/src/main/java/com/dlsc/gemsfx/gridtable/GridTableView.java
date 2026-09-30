@@ -1,22 +1,34 @@
 package com.dlsc.gemsfx.gridtable;
 
+import com.dlsc.gemsfx.CircleProgressIndicator;
+import com.dlsc.gemsfx.LoadingPane;
 import com.dlsc.gemsfx.skins.GridTableViewSkin;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ListProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleListProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Orientation;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Skin;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.util.Callback;
 
 import java.util.Objects;
+import java.util.function.Consumer;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A simple table view implementation based on GridPane.
@@ -27,8 +39,18 @@ public class GridTableView<S> extends Control {
 
     private static final String DEFAULT_STYLE_CLASS = "grid-table-view";
 
+    /**
+     * Constructs a grid table view with the default style class and table accessibility role.
+     */
     public GridTableView() {
         getStyleClass().add(DEFAULT_STYLE_CLASS);
+        AccessibilityUtil.setRole(this, AccessibleRole.TABLE_VIEW);
+        setFocusTraversable(true);
+        addEventHandler(MouseEvent.MOUSE_CLICKED, evt -> {
+            if (evt.getButton() == MouseButton.PRIMARY && evt.isStillSincePress() && evt.getClickCount() == 1) {
+                requestFocus();
+            }
+        });
     }
 
     @Override
@@ -37,14 +59,90 @@ public class GridTableView<S> extends Control {
     }
 
     @Override
+    public Orientation getContentBias() {
+        ObservableList<Node> children = getChildren();
+        if (children.isEmpty()) {
+            return super.getContentBias();
+        }
+        return children.get(0).getContentBias();
+    }
+
+    @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(GridTableView.class.getResource("grid-table-view.css")).toExternalForm();
+    }
+
+    // row header factory
+    private final ObjectProperty<Callback<S, Node>> rowHeaderFactory = new SimpleObjectProperty<>(this, "rowHeaderFactory");
+
+    public final Callback<S, Node> getRowHeaderFactory() {
+        return rowHeaderFactory.get();
+    }
+
+    /**
+     * The factory used to create an optional header node above the cells for a row item.
+     *
+     * @return the row header factory property
+     */
+    public final ObjectProperty<Callback<S, Node>> rowHeaderFactoryProperty() {
+        return rowHeaderFactory;
+    }
+
+    public final void setRowHeaderFactory(Callback<S, Node> rowHeaderFactory) {
+        this.rowHeaderFactory.set(rowHeaderFactory);
+    }
+
+    // row footer factory
+    private final ObjectProperty<Callback<S, Node>> rowFooterFactory = new SimpleObjectProperty<>(this, "rowFooterFactory");
+
+    public final Callback<S, Node> getRowFooterFactory() {
+        return rowFooterFactory.get();
+    }
+
+    /**
+     * The factory used to create an optional footer node below the cells for a row item.
+     *
+     * @return the row footer factory property
+     */
+    public final ObjectProperty<Callback<S, Node>> rowFooterFactoryProperty() {
+        return rowFooterFactory;
+    }
+
+    public final void setRowFooterFactory(Callback<S, Node> rowFooterFactory) {
+        this.rowFooterFactory.set(rowFooterFactory);
+    }
+
+    // progress indicator
+
+    private final ObjectProperty<ProgressIndicator> progressIndicator = new SimpleObjectProperty<>(this, "progressIndicator", new CircleProgressIndicator());
+
+    public final ProgressIndicator getProgressIndicator() {
+        return progressIndicator.get();
+    }
+
+    /**
+     * The progress indicator that will be used to display percentage progress or the indeterminate state of the
+     * loading progress.
+     *
+     * @return the progress indicator
+     */
+    public final ObjectProperty<ProgressIndicator> progressIndicatorProperty() {
+        return progressIndicator;
+    }
+
+    public final void setProgressIndicator(ProgressIndicator progressIndicator) {
+        this.progressIndicator.set(progressIndicator);
     }
 
     // items
 
     private final ListProperty<S> items = new SimpleListProperty<>(this, "items", FXCollections.observableArrayList());
 
+    /**
+     * The items displayed as rows in this grid table view.
+     *
+     * @return the items property
+     */
     public final ListProperty<S> itemsProperty() {
         return items;
     }
@@ -61,6 +159,11 @@ public class GridTableView<S> extends Control {
 
     private final ListProperty<GridTableColumn<S, ?>> columns = new SimpleListProperty<>(this, "columns", FXCollections.observableArrayList());
 
+    /**
+     * The columns used to create headers and cells for each row.
+     *
+     * @return the columns property
+     */
     public final ListProperty<GridTableColumn<S, ?>> columnsProperty() {
         return this.columns;
     }
@@ -75,18 +178,42 @@ public class GridTableView<S> extends Control {
 
     // placeholder
 
-    private final ObjectProperty<Node> placeholder = new SimpleObjectProperty<>(this, "placeholder", new Label("No items"));
+    private final ObjectProperty<Node> placeholder = new SimpleObjectProperty<>(this, "placeholder", new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.GRID_TABLE_VIEW, "placeholder.no-items", "No items")));
 
     public final Node getPlaceholder() {
         return placeholder.get();
     }
 
+    /**
+     * The node displayed in the table body when there are columns but no items to show.
+     *
+     * @return the placeholder property
+     */
     public final ObjectProperty<Node> placeholderProperty() {
         return placeholder;
     }
 
     public final void setPlaceholder(Node placeholder) {
         this.placeholder.set(placeholder);
+    }
+
+    private final ObjectProperty<Consumer<S>> onOpenItem = new SimpleObjectProperty<>(this, "onOpenItem");
+
+    public final Consumer<S> getOnOpenItem() {
+        return onOpenItem.get();
+    }
+
+    /**
+     * A callback for opening an item represented by a row in the table view.
+     *
+     * @return a callback for opening table items
+     */
+    public final ObjectProperty<Consumer<S>> onOpenItemProperty() {
+        return onOpenItem;
+    }
+
+    public final void setOnOpenItem(Consumer<S> onOpenItem) {
+        this.onOpenItem.set(onOpenItem);
     }
 
     // min rows
@@ -97,11 +224,110 @@ public class GridTableView<S> extends Control {
         return minNumberOfRows.get();
     }
 
+    /**
+     * The minimum number of body rows created by the skin, including empty rows when there are fewer items.
+     *
+     * @return the minimum number of rows property
+     */
     public final IntegerProperty minNumberOfRowsProperty() {
         return minNumberOfRows;
     }
 
     public final void setMinNumberOfRows(int minNumberOfRows) {
         this.minNumberOfRows.set(minNumberOfRows);
+    }
+
+    // loading status
+
+    private final ObjectProperty<LoadingPane.Status> loadingStatus = new SimpleObjectProperty<>(this, "loadingStatus", LoadingPane.Status.OK);
+
+    public final LoadingPane.Status getLoadingStatus() {
+        return loadingStatus.get();
+    }
+
+    /**
+     * The loading status used for the wrapped {@link LoadingPane}. The loading pane will appear if the
+     * loader takes a long time to return the new page items.
+     *
+     * @return the loading status
+     */
+    public final ObjectProperty<LoadingPane.Status> loadingStatusProperty() {
+        return loadingStatus;
+    }
+
+    public final void setLoadingStatus(LoadingPane.Status loadingStatus) {
+        this.loadingStatus.set(loadingStatus);
+    }
+
+    // loading status indicator size
+
+    private final ObjectProperty<LoadingPane.Size> loadingStatusSize = new SimpleObjectProperty<>(this, "loadingStatusSize", LoadingPane.Size.MEDIUM);
+
+    public final LoadingPane.Size getLoadingStatusSize() {
+        return loadingStatusSize.get();
+    }
+
+    /**
+     * The size used by the {@link LoadingPane} status indicator displayed over the table body.
+     *
+     * @return the loading status size property
+     */
+    public final ObjectProperty<LoadingPane.Size> loadingStatusSizeProperty() {
+        return loadingStatusSize;
+    }
+
+    public final void setLoadingStatusSize(LoadingPane.Size loadingStatusSize) {
+        this.loadingStatusSize.set(loadingStatusSize);
+    }
+
+    // commit load status delay
+
+    private final LongProperty commitLoadStatusDelay = new SimpleLongProperty(this, "commitLoadStatusDelay", 400L);
+
+    public final long getCommitLoadStatusDelay() {
+        return commitLoadStatusDelay.get();
+    }
+
+    /**
+     * The delay in milliseconds before the list view will display the progress indicator for long running
+     * load operations.
+     *
+     * @see LoadingPane#commitDelayProperty()
+     *
+     * @return the commit delay for the nested loading pane
+     */
+    public final LongProperty commitLoadStatusDelayProperty() {
+        return commitLoadStatusDelay;
+    }
+
+    public final void setCommitLoadStatusDelay(long commitLoadStatusDelay) {
+        this.commitLoadStatusDelay.set(commitLoadStatusDelay);
+    }
+
+    private final ObjectProperty<Callback<S, ContextMenu>> onContextMenuForItemRequested = new SimpleObjectProperty<>(this, "onContextMenuForItemRequested");
+
+    public final Callback<S, ContextMenu> getOnContextMenuForItemRequested() {
+        return onContextMenuForItemRequested.get();
+    }
+
+    /**
+     * An optional callback that can be used to create a context menu for a given item / row.
+     *
+     * @return the callback for creating a context menu for a given item / row.
+     */
+    public final ObjectProperty<Callback<S, ContextMenu>> onContextMenuForItemRequestedProperty() {
+        return onContextMenuForItemRequested;
+    }
+
+    public final void setOnContextMenuForItemRequested(Callback<S, ContextMenu> onContextMenuForItemRequested) {
+        this.onContextMenuForItemRequested.set(onContextMenuForItemRequested);
+    }
+
+    /**
+     * Triggers a rebuild of the view without reloading data.
+     */
+    public final void refresh() {
+        getProperties().remove("refresh-items");
+        getProperties().put("refresh-items", true);
     }
 }

@@ -11,7 +11,6 @@ import javafx.beans.property.ReadOnlyListProperty;
 import javafx.beans.property.ReadOnlyListWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -22,19 +21,28 @@ import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.css.CssMetaData;
+import javafx.css.Styleable;
+import javafx.css.StyleableBooleanProperty;
+import javafx.css.StyleableProperty;
+import javafx.css.converter.BooleanConverter;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
-import javafx.scene.control.Label;
 import javafx.scene.control.Skin;
+import javafx.scene.layout.Region;
 import javafx.util.Callback;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A view for presenting a set of predefined filter groups, each one with a list of filters.
@@ -55,13 +63,28 @@ import java.util.function.Predicate;
  * </p>
  *
  * @param <T> the type of the model objects filtered by the view
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-show-header}</td><td>{@code boolean}</td><td>Whether to show the header</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class FilterView<T> extends Control {
 
     private final SearchTextField searchTextField = new SearchTextField();
 
+    /**
+     * Constructs a new filter view.
+     */
     public FilterView() {
         getStyleClass().add("filter-view");
+        AccessibilityUtil.setRole(this, AccessibleRole.NODE, ResourceBundleManager.getString(ResourceBundleManager.BundleType.FILTER_VIEW, "accessible.role-description", "filter"));
+
+        setMinHeight(Region.USE_PREF_SIZE);
 
         setFocusTraversable(false);
 
@@ -132,74 +155,91 @@ public class FilterView<T> extends Control {
 
     private final IntegerProperty scrollThreshold = new SimpleIntegerProperty(this, "scrollThreshold", 100);
 
-    public int getScrollThreshold() {
+    public final int getScrollThreshold() {
         return scrollThreshold.get();
     }
 
     /**
      * The threshold number of filters at which a ScrollPane is introduced to handle large number of elements.
      * If the number of filters is equal to or exceeds this value, the filters will be displayed within a ScrollPane.
+     *
+     * @return the scroll threshold property
      */
-    public IntegerProperty scrollThresholdProperty() {
+    public final IntegerProperty scrollThresholdProperty() {
         return scrollThreshold;
     }
 
-    public void setScrollThreshold(int scrollThreshold) {
+    public final void setScrollThreshold(int scrollThreshold) {
         this.scrollThreshold.set(scrollThreshold);
     }
 
-    private final ObjectProperty<Label> titleLabel = new SimpleObjectProperty<>(this, "titleLabel", new Label());
+    private final ObjectProperty<Node> titleGraphic = new SimpleObjectProperty<>(this, "titleGraphic");
 
-    public final Label getTitleLabel() {
-        return titleLabel.get();
+    public final Node getTitleGraphic() {
+        return titleGraphic.get();
     }
 
     /**
-     * The label instance that will be used for displaying the title of the view.
+     * The graphic node displayed alongside the title label.
+     *
+     * @return the title graphic property
      */
-    public final ObjectProperty<Label> titleLabelProperty() {
-        return titleLabel;
+    public final ObjectProperty<Node> titleGraphicProperty() {
+        return titleGraphic;
     }
 
-    public final void setTitleLabel(Label titleLabel) {
-        this.titleLabel.set(titleLabel);
+    public final void setTitleGraphic(Node titleGraphic) {
+        this.titleGraphic.set(titleGraphic);
     }
 
-    private final ObjectProperty<Label> titlePostfixLabel = new SimpleObjectProperty<>(this, "titlePostfixLabel", new Label());
+    private final ObjectProperty<Node> titlePostfixGraphic = new SimpleObjectProperty<>(this, "titlePostfixGraphic");
 
-    public final Label getTitlePostfixLabel() {
-        return titlePostfixLabel.get();
+    public final Node getTitlePostfixGraphic() {
+        return titlePostfixGraphic.get();
     }
 
     /**
-     * The label instance that will be used for displaying the title postfix text of the view.
+     * The graphic node displayed alongside the title postfix label.
+     *
+     * @return the title postfix graphic property
      */
-    public final ObjectProperty<Label> titlePostfixLabelProperty() {
-        return titlePostfixLabel;
+    public final ObjectProperty<Node> titlePostfixGraphicProperty() {
+        return titlePostfixGraphic;
     }
 
-    public final void setTitlePostfixLabel(Label titlePostfixLabel) {
-        this.titlePostfixLabel.set(titlePostfixLabel);
+    public final void setTitlePostfixGraphic(Node titlePostfixGraphic) {
+        this.titlePostfixGraphic.set(titlePostfixGraphic);
     }
 
-    private final ObjectProperty<Label> subtitleLabel = new SimpleObjectProperty<>(this, "subtitleLabel", new Label());
+    private final ObjectProperty<Node> subtitleGraphic = new SimpleObjectProperty<>(this, "subtitleGraphic");
 
-    public Label getSubtitleLabel() {
-        return subtitleLabel.get();
+    public final Node getSubtitleGraphic() {
+        return subtitleGraphic.get();
     }
 
     /**
-     * The label instance that will be used for displaying the subtitle of the view.
+     * The graphic node displayed alongside the subtitle label.
+     *
+     * @return the subtitle graphic property
      */
-    public ObjectProperty<Label> subtitleLabelProperty() {
-        return subtitleLabel;
+    public final ObjectProperty<Node> subtitleGraphicProperty() {
+        return subtitleGraphic;
     }
 
-    public void setSubtitleLabel(Label subtitleLabel) {
-        this.subtitleLabel.set(subtitleLabel);
+    public final void setSubtitleGraphic(Node subtitleGraphic) {
+        this.subtitleGraphic.set(subtitleGraphic);
     }
 
-    private final BooleanProperty showHeader = new SimpleBooleanProperty(this, "showHeader", true);
+    private final StyleableBooleanProperty showHeader = new StyleableBooleanProperty(true) {
+        @Override
+        public Object getBean() { return FilterView.this; }
+        @Override
+        public String getName() { return "showHeader"; }
+        @Override
+        public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+            return StyleableProperties.SHOW_HEADER;
+        }
+    };
 
     public final boolean isShowHeader() {
         return showHeader.get();
@@ -208,6 +248,11 @@ public class FilterView<T> extends Control {
     /**
      * A flag to control whether the title, subtitle, and the search field
      * will be shown or not.
+     * <p>
+     * Can be set via CSS using the {@code -fx-show-header} property.
+     * Valid values are: {@code true}, {@code false}.
+     * The default value is {@code true}.
+     * </p>
      *
      * @return true if the header will be shown (default is "true")
      */
@@ -239,7 +284,7 @@ public class FilterView<T> extends Control {
         this.extras.set(extras);
     }
 
-    private final StringProperty title = new SimpleStringProperty(this, "title", "Untitled");
+    private final StringProperty title = new SimpleStringProperty(this, "title", ResourceBundleManager.getString(ResourceBundleManager.BundleType.FILTER_VIEW, "title.untitled", "Untitled"));
 
     public final String getTitle() {
         return title.get();
@@ -317,6 +362,11 @@ public class FilterView<T> extends Control {
 
     private final ReadOnlyListWrapper<T> filteredItems = new ReadOnlyListWrapper<>();
 
+    /**
+     * A read-only list containing the items that match the currently selected filters.
+     *
+     * @return the filtered items property
+     */
     public final ReadOnlyListProperty<T> filteredItemsProperty() {
         return filteredItems.getReadOnlyProperty();
     }
@@ -378,6 +428,11 @@ public class FilterView<T> extends Control {
         return filterGroups.get();
     }
 
+    /**
+     * The groups that define the available filters shown by this view.
+     *
+     * @return the filter groups property
+     */
     public final ListProperty<FilterGroup<T>> filterGroupsProperty() {
         return filterGroups;
     }
@@ -390,15 +445,20 @@ public class FilterView<T> extends Control {
 
     private final ListProperty<Filter<T>> filters = new SimpleListProperty<>(this, "filters", FXCollections.observableArrayList());
 
-    public ObservableList<Filter<T>> getFilters() {
+    public final ObservableList<Filter<T>> getFilters() {
         return filters.get();
     }
 
-    public ListProperty<Filter<T>> filtersProperty() {
+    /**
+     * The currently selected filters.
+     *
+     * @return the selected filters property
+     */
+    public final ListProperty<Filter<T>> filtersProperty() {
         return filters;
     }
 
-    public void setFilters(ObservableList<Filter<T>> filters) {
+    public final void setFilters(ObservableList<Filter<T>> filters) {
         this.filters.set(filters);
     }
 
@@ -410,6 +470,11 @@ public class FilterView<T> extends Control {
         return additionalFilterPredicate.get();
     }
 
+    /**
+     * An additional predicate that is combined with the filter and text predicates.
+     *
+     * @return the additional filter predicate property
+     */
     public final ObjectProperty<Predicate<T>> additionalFilterPredicateProperty() {
         return additionalFilterPredicate;
     }
@@ -426,8 +491,48 @@ public class FilterView<T> extends Control {
         return filterPredicate.get();
     }
 
+    /**
+     * A read-only predicate combining selected filters, filter text, and the additional predicate.
+     *
+     * @return the combined filter predicate property
+     */
     public final ReadOnlyObjectProperty<Predicate<T>> filterPredicateProperty() {
         return filterPredicate.getReadOnlyProperty();
+    }
+
+    private static class StyleableProperties {
+        private static final CssMetaData<FilterView, Boolean> SHOW_HEADER =
+                new CssMetaData<>("-fx-show-header", BooleanConverter.getInstance(), true) {
+                    @Override
+                    public boolean isSettable(FilterView c) {
+                        return !c.showHeader.isBound();
+                    }
+                    @Override
+                    public StyleableProperty<Boolean> getStyleableProperty(FilterView c) {
+                        return (StyleableProperty<Boolean>) c.showHeader;
+                    }
+                };
+
+        private static final List<CssMetaData<? extends Styleable, ?>> STYLEABLES;
+        static {
+            List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(Control.getClassCssMetaData());
+            styleables.add(SHOW_HEADER);
+            STYLEABLES = Collections.unmodifiableList(styleables);
+        }
+    }
+
+    /**
+     * Returns the CSS metadata for this class.
+     *
+     * @return the CSS metadata for this class
+     */
+    public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
+        return StyleableProperties.STYLEABLES;
+    }
+
+    @Override
+    public List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
+        return getClassCssMetaData();
     }
 
     /**
@@ -458,6 +563,11 @@ public class FilterView<T> extends Control {
             });
         }
 
+        /**
+         * Constructs a new group with an identifier derived from its name.
+         *
+         * @param name the name that will be shown in the UI
+         */
         public FilterGroup(String name) {
             this(name, StringUtils.replaceEach(name, new String[]{"(", ")", "&", "_", " "}, new String[]{"", "", "and", "-", "-"}).toLowerCase());
         }
@@ -470,6 +580,11 @@ public class FilterView<T> extends Control {
             return filters.get();
         }
 
+        /**
+         * The filters that belong to this group.
+         *
+         * @return the filters property
+         */
         public final ListProperty<Filter<T>> filtersProperty() {
             return filters;
         }
@@ -480,7 +595,7 @@ public class FilterView<T> extends Control {
 
         // group name
 
-        private final StringProperty name = new SimpleStringProperty(this, "name", "Untitled");
+        private final StringProperty name = new SimpleStringProperty(this, "name", ResourceBundleManager.getString(ResourceBundleManager.BundleType.FILTER_VIEW, "group.name.untitled", "Untitled"));
 
         /**
          * The name of the filter as shown in the filter group's dropdown list.
@@ -592,7 +707,7 @@ public class FilterView<T> extends Control {
 
         // name
 
-        private final StringProperty name = new SimpleStringProperty(this, "name", "Untitled");
+        private final StringProperty name = new SimpleStringProperty(this, "name", ResourceBundleManager.getString(ResourceBundleManager.BundleType.FILTER_VIEW, "filter.name.untitled", "Untitled"));
 
         /**
          * The name of the filter as shown inside the UI.

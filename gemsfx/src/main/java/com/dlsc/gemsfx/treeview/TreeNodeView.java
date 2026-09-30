@@ -15,6 +15,8 @@ import javafx.css.converter.EnumConverter;
 import javafx.css.converter.SizeConverter;
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
@@ -25,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 
 /**
@@ -33,6 +36,25 @@ import java.util.Objects;
  * Built on the {@link TreeNode} class, this control visualizes hierarchical structures, allowing nodes to have children.
  * <p>
  * Customizable in layout, alignment, and style, it's ideal for representing data like file systems or organizational charts.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-cell-height}</td><td>{@code double}</td><td>Fixed height of each cell.</td></tr>
+ *     <tr><td>{@code -fx-cell-width}</td><td>{@code double}</td><td>Fixed width of each cell.</td></tr>
+ *     <tr><td>{@code -fx-column-alignment}</td><td>{@code HPos}</td><td>Alignment of nodes at the same column level.</td></tr>
+ *     <tr><td>{@code -fx-hgap}</td><td>{@code double}</td><td>Horizontal gap between cells.</td></tr>
+ *     <tr><td>{@code -fx-layout-direction}</td><td>{@code LayoutDirection}</td><td>Direction in which the tree is laid out.</td></tr>
+ *     <tr><td>{@code -fx-layout-type}</td><td>{@code LayoutType}</td><td>Whether layout is regular or compact.</td></tr>
+ *     <tr><td>{@code -fx-node-line-gap}</td><td>{@code double}</td><td>Gap between cell and connecting lines.</td></tr>
+ *     <tr><td>{@code -fx-row-alignment}</td><td>{@code VPos}</td><td>Alignment of nodes at the same row level.</td></tr>
+ *     <tr><td>{@code -fx-vgap}</td><td>{@code double}</td><td>Vertical gap between cells.</td></tr>
+ *   </tbody>
+ * </table>
+ *
+ * @param <T> the type of the value stored in each tree node
  */
 public class TreeNodeView<T> extends Control {
     private static final int DEFAULT_CELL_WIDTH = 60;
@@ -50,11 +72,20 @@ public class TreeNodeView<T> extends Control {
     private static final PseudoClass BTT_PSEUDOCLASS_STATE = PseudoClass.getPseudoClass("btt");
     private static final String DEFAULT_STYLE_CLASS = "tree-node-view";
 
+    /**
+     * Creates an empty tree node view.
+     */
     public TreeNodeView() {
         getStyleClass().add(DEFAULT_STYLE_CLASS);
+        AccessibilityUtil.setRole(this, AccessibleRole.TREE_VIEW);
         layoutDirection.addListener(it -> activateDirectionPseudoClass());
     }
 
+    /**
+     * Creates a tree node view with the given root node.
+     *
+     * @param root the root node to display
+     */
     public TreeNodeView(TreeNode<T> root) {
         this();
         setRoot(root);
@@ -87,29 +118,34 @@ public class TreeNodeView<T> extends Control {
         return cellFactory.get();
     }
 
+    /**
+     * The cell factory property used to create cells for tree node values.
+     *
+     * @return the cell factory property
+     */
     public final ObjectProperty<Callback<T, TreeNodeCell<T>>> cellFactoryProperty() {
         return cellFactory;
     }
 
     private final ObjectProperty<TreeNode<T>> root = new SimpleObjectProperty<>(this, "root");
 
-    public TreeNode<T> getRoot() {
+    public final TreeNode<T> getRoot() {
         return root.get();
     }
 
-    public ObjectProperty<TreeNode<T>> rootProperty() {
+    /**
+     * The root property.
+     *
+     * @return the root property
+     */
+    public final ObjectProperty<TreeNode<T>> rootProperty() {
         return root;
     }
 
-    public void setRoot(TreeNode<T> root) {
+    public final void setRoot(TreeNode<T> root) {
         this.root.set(root);
     }
 
-    /**
-     * Alignment on the same level;
-     * When the layout direction is btt or ttb,
-     * this attribute indicates the alignment of nodes at the same level;
-     */
     private final StyleableObjectProperty<VPos> rowAlignment = new StyleableObjectProperty<>(DEFAULT_ROW_ALIGNMENT) {
         @Override
         public CssMetaData<? extends Styleable, VPos> getCssMetaData() {
@@ -127,23 +163,29 @@ public class TreeNodeView<T> extends Control {
         }
     };
 
-    public VPos getRowAlignment() {
+    public final VPos getRowAlignment() {
         return rowAlignment.get();
     }
 
-    public ObjectProperty<VPos> rowAlignmentProperty() {
+    /**
+     * Alignment on the same level; when the layout direction is btt or ttb,
+     * this attribute indicates the alignment of nodes at the same level.
+     * <p>
+     * Can be set via CSS using the {@code -fx-row-alignment} property.
+     * Valid values are: {@code top}, {@code center}, {@code bottom}, {@code baseline}.
+     * The default value is {@code center}.
+     * </p>
+     *
+     * @return the row alignment property
+     */
+    public final ObjectProperty<VPos> rowAlignmentProperty() {
         return rowAlignment;
     }
 
-    public void setRowAlignment(VPos rowAlignment) {
+    public final void setRowAlignment(VPos rowAlignment) {
         this.rowAlignment.set(rowAlignment);
     }
 
-    /**
-     * Alignment on the same level;
-     * When the layout direction is ltr or rtl,
-     * this attribute indicates the alignment of nodes at the same level;
-     */
     private final StyleableObjectProperty<HPos> columnAlignment = new StyleableObjectProperty<>(DEFAULT_COLUMN_ALIGNMENT) {
         @Override
         public CssMetaData<? extends Styleable, HPos> getCssMetaData() {
@@ -161,15 +203,26 @@ public class TreeNodeView<T> extends Control {
         }
     };
 
-    public HPos getColumnAlignment() {
+    public final HPos getColumnAlignment() {
         return columnAlignment.get();
     }
 
-    public ObjectProperty<HPos> columnAlignmentProperty() {
+    /**
+     * Alignment on the same level; when the layout direction is ltr or rtl,
+     * this attribute indicates the alignment of nodes at the same level.
+     * <p>
+     * Can be set via CSS using the {@code -fx-column-alignment} property.
+     * Valid values are: {@code left}, {@code center}, {@code right}.
+     * The default value is {@code center}.
+     * </p>
+     *
+     * @return the column alignment property
+     */
+    public final ObjectProperty<HPos> columnAlignmentProperty() {
         return columnAlignment;
     }
 
-    public void setColumnAlignment(HPos columnAlignment) {
+    public final void setColumnAlignment(HPos columnAlignment) {
         this.columnAlignment.set(columnAlignment);
     }
 
@@ -190,15 +243,24 @@ public class TreeNodeView<T> extends Control {
         }
     };
 
-    public double getCellWidth() {
+    public final double getCellWidth() {
         return cellWidth.get();
     }
 
-    public DoubleProperty cellWidthProperty() {
+    /**
+     * The fixed width of each cell (tree node) in the view.
+     * <p>
+     * Can be set via CSS using the {@code -fx-cell-width} property.
+     * The default value is {@code 60}.
+     * </p>
+     *
+     * @return the cell width property
+     */
+    public final DoubleProperty cellWidthProperty() {
         return cellWidth;
     }
 
-    public void setCellWidth(double cellWidth) {
+    public final void setCellWidth(double cellWidth) {
         this.cellWidth.set(cellWidth);
     }
 
@@ -220,15 +282,24 @@ public class TreeNodeView<T> extends Control {
 
     };
 
-    public double getCellHeight() {
+    public final double getCellHeight() {
         return cellHeight.get();
     }
 
-    public DoubleProperty cellHeightProperty() {
+    /**
+     * The fixed height of each cell (tree node) in the view.
+     * <p>
+     * Can be set via CSS using the {@code -fx-cell-height} property.
+     * The default value is {@code 30}.
+     * </p>
+     *
+     * @return the cell height property
+     */
+    public final DoubleProperty cellHeightProperty() {
         return cellHeight;
     }
 
-    public void setCellHeight(double cellHeight) {
+    public final void setCellHeight(double cellHeight) {
         this.cellHeight.set(cellHeight);
     }
 
@@ -249,15 +320,24 @@ public class TreeNodeView<T> extends Control {
         }
     };
 
-    public double getHgap() {
+    public final double getHgap() {
         return hgap.get();
     }
 
-    public DoubleProperty hgapProperty() {
+    /**
+     * The horizontal gap between cells in the tree view.
+     * <p>
+     * Can be set via CSS using the {@code -fx-hgap} property.
+     * The default value is {@code 20}.
+     * </p>
+     *
+     * @return the horizontal gap property
+     */
+    public final DoubleProperty hgapProperty() {
         return hgap;
     }
 
-    public void setHgap(double hgap) {
+    public final void setHgap(double hgap) {
         this.hgap.set(hgap);
     }
 
@@ -278,15 +358,24 @@ public class TreeNodeView<T> extends Control {
         }
     };
 
-    public double getVgap() {
+    public final double getVgap() {
         return vgap.get();
     }
 
-    public DoubleProperty vgapProperty() {
+    /**
+     * The vertical gap between cells in the tree view.
+     * <p>
+     * Can be set via CSS using the {@code -fx-vgap} property.
+     * The default value is {@code 50}.
+     * </p>
+     *
+     * @return the vertical gap property
+     */
+    public final DoubleProperty vgapProperty() {
         return vgap;
     }
 
-    public void setVgap(double vgap) {
+    public final void setVgap(double vgap) {
         this.vgap.set(vgap);
     }
 
@@ -307,52 +396,74 @@ public class TreeNodeView<T> extends Control {
         }
     };
 
-    public double getNodeLineGap() {
+    public final double getNodeLineGap() {
         return nodeLineGap.get();
     }
 
-    public DoubleProperty nodeLineGapProperty() {
+    /**
+     * The gap between the tree node cell and the connecting lines.
+     * <p>
+     * Can be set via CSS using the {@code -fx-node-line-gap} property.
+     * The default value is {@code 10}.
+     * </p>
+     *
+     * @return the node line gap property
+     */
+    public final DoubleProperty nodeLineGapProperty() {
         return nodeLineGap;
     }
 
-    public void setNodeLineGap(double nodeLineGap) {
+    public final void setNodeLineGap(double nodeLineGap) {
         this.nodeLineGap.set(nodeLineGap);
     }
 
     private final ObjectProperty<Node> placeholder = new SimpleObjectProperty<>(this, "placeholder", createDefaultPlaceholder());
 
-    public Node getPlaceholder() {
+    public final Node getPlaceholder() {
         return placeholder.get();
     }
 
-    public ObjectProperty<Node> placeholderProperty() {
+    /**
+     * The placeholder property used when no root node is set.
+     *
+     * @return the placeholder property
+     */
+    public final ObjectProperty<Node> placeholderProperty() {
         return placeholder;
     }
 
-    public void setPlaceholder(Node placeholder) {
+    public final void setPlaceholder(Node placeholder) {
         this.placeholder.set(placeholder);
     }
 
     private final ObjectProperty<LinkStrategy<T>> linkStrategy = new SimpleObjectProperty<>(this, "linkStrategy", new StraightLineLink<>());
 
-    public LinkStrategy<T> getLinkStrategy() {
+    public final LinkStrategy<T> getLinkStrategy() {
         return linkStrategy.get();
     }
 
-    public ObjectProperty<LinkStrategy<T>> linkStrategyProperty() {
+    /**
+     * The link strategy property used to draw connections between nodes.
+     *
+     * @return the link strategy property
+     */
+    public final ObjectProperty<LinkStrategy<T>> linkStrategyProperty() {
         return linkStrategy;
     }
 
-    public void setLinkStrategy(LinkStrategy<T> linkStrategy) {
+    public final void setLinkStrategy(LinkStrategy<T> linkStrategy) {
         this.linkStrategy.set(linkStrategy);
     }
 
     private Node createDefaultPlaceholder() {
-        Label label = new Label("No tree root.");
+        Label label = new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.TREE_NODE_VIEW, "placeholder.no-root", "No tree root."));
         label.getStyleClass().add("default-placeholder");
         return label;
     }
 
+    /**
+     * Specifies how tree nodes are arranged within the view.
+     */
     public enum LayoutType {
         /**
          * The tree node view will be layout in a regular way. may be wider
@@ -381,18 +492,31 @@ public class TreeNodeView<T> extends Control {
         }
     };
 
-    public LayoutType getLayoutType() {
+    public final LayoutType getLayoutType() {
         return layoutType.get();
     }
 
-    public ObjectProperty<LayoutType> layoutTypeProperty() {
+    /**
+     * Controls whether the tree node view uses regular or compact layout.
+     * <p>
+     * Can be set via CSS using the {@code -fx-layout-type} property.
+     * Valid values are: {@code regular}, {@code compact}.
+     * The default value is {@code regular}.
+     * </p>
+     *
+     * @return the layout type property
+     */
+    public final ObjectProperty<LayoutType> layoutTypeProperty() {
         return layoutType;
     }
 
-    public void setLayoutType(LayoutType layoutType) {
+    public final void setLayoutType(LayoutType layoutType) {
         this.layoutType.set(layoutType);
     }
 
+    /**
+     * Specifies the direction in which the tree grows from its root.
+     */
     public enum LayoutDirection {
         /**
          * The tree node view will be layout from left to right.
@@ -429,18 +553,31 @@ public class TreeNodeView<T> extends Control {
         }
     };
 
-    public LayoutDirection getLayoutDirection() {
+    public final LayoutDirection getLayoutDirection() {
         return layoutDirection.get();
     }
 
-    public ObjectProperty<LayoutDirection> layoutDirectionProperty() {
+    /**
+     * Controls the direction in which the tree is laid out.
+     * <p>
+     * Can be set via CSS using the {@code -fx-layout-direction} property.
+     * Valid values are: {@code left-to-right}, {@code right-to-left}, {@code top-to-bottom}, {@code bottom-to-top}.
+     * The default value is {@code top-to-bottom}.
+     * </p>
+     *
+     * @return the layout direction property
+     */
+    public final ObjectProperty<LayoutDirection> layoutDirectionProperty() {
         return layoutDirection;
     }
 
-    public void setLayoutDirection(LayoutDirection layoutDirection) {
+    public final void setLayoutDirection(LayoutDirection layoutDirection) {
         this.layoutDirection.set(layoutDirection);
     }
 
+    /**
+     * Rebuilds the visual tree from the current model and properties.
+     */
     public void refresh() {
         Skin<?> skin = getSkin();
         if (skin instanceof TreeNodeViewSkin) {
@@ -591,6 +728,11 @@ public class TreeNodeView<T> extends Control {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata for this control class.
+     *
+     * @return the CSS metadata for this control class
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return StyleableProperties.STYLEABLES;
     }

@@ -3,28 +3,36 @@ package com.dlsc.gemsfx.demo;
 import com.dlsc.gemsfx.FilterView;
 import com.dlsc.gemsfx.FilterView.Filter;
 import com.dlsc.gemsfx.FilterView.FilterGroup;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.materialdesign.MaterialDesign;
 
 import java.time.LocalDate;
 
-public class FilterViewApp extends Application {
+public class FilterViewApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         FilterView<Person> filterView = new FilterView<>();
         filterView.setTitle("Title Here");
+        filterView.setTitleGraphic(new FontIcon(MaterialDesign.MDI_FLAG));
         filterView.setSubtitle("Subtitle can be displayed here");
+        filterView.setSubtitleGraphic(new FontIcon(MaterialDesign.MDI_FILTER));
+        filterView.setTitlePostfix("Postfix");
+        filterView.setTitlePostfixGraphic(new FontIcon(MaterialDesign.MDI_PEN));
+
         filterView.setTextFilterProvider(text -> person -> person.getFirstName().toLowerCase().contains(text) || person.getLastName().toLowerCase().contains(text));
+
+        filterView.setExtras(new MenuButton("Extras"));
 
         TableView<Person> tableView = new TableView<>();
 
@@ -173,10 +181,8 @@ public class FilterViewApp extends Application {
         stage.setScene(scene);
         stage.setWidth(1000);
         stage.setHeight(850);
-        stage.centerOnScreen();
-        stage.show();
 
-        CSSFX.start();
+        stage.show();
     }
 
     public static class Person {

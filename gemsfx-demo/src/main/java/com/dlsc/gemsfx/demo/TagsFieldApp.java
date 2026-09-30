@@ -1,10 +1,9 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.TagsField;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -14,7 +13,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
-import org.scenicview.ScenicView;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -22,12 +20,14 @@ import java.util.List;
 import java.util.StringTokenizer;
 import java.util.stream.Collectors;
 
-public class TagsFieldApp extends Application {
+public class TagsFieldApp extends GemApplication {
 
     private final List<Country> countries = new ArrayList<>();
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         StringTokenizer st = new StringTokenizer(getCountries(), ",");
         while (st.hasMoreTokens()) {
             countries.add(new Country(st.nextToken()));
@@ -48,7 +48,7 @@ public class TagsFieldApp extends Application {
         Label label = new Label("Selected country:");
         Label value = new Label();
         value.textProperty().bind(Bindings.createStringBinding(() -> field.getSelectedItem() != null ? field.getSelectedItem().getName() : "<no selection>", field.selectedItemProperty()));
-        HBox hBox = new HBox(10, label, value);
+        HBox hBox1 = new HBox(10, label, value);
 
         Label label2 = new Label("Number of suggestions found:");
         Label value2 = new Label();
@@ -118,8 +118,9 @@ public class TagsFieldApp extends Application {
         fieldsBox.setAlignment(Pos.TOP_LEFT);
         HBox.setHgrow(field, Priority.ALWAYS);
 
-        Button scenicViewButton = new Button("Scenic View");
-        scenicViewButton.setOnAction(evt -> ScenicView.show(field.getScene()));
+        Button scenicViewButton = new Button("Dev Tools");
+        hideInBrowser(scenicViewButton);
+        configureDevToolsButton(scenicViewButton);
 
         Button generateButton = new Button("Generate Tags");
         generateButton.setOnAction(evt -> {
@@ -133,19 +134,42 @@ public class TagsFieldApp extends Application {
             }
         });
 
-        HBox buttonBox = new HBox(10, scenicViewButton, generateButton);
+        Button clearButton = new Button("Clear Tags");
+        clearButton.setOnAction(evt -> field.getTags().clear());
 
-        VBox vbox = new VBox(20, createNewItemBox, showPromptText, usePlaceholder, hideWithSingleChoiceBox, showSearchIconBox, showLeftRightNodes, singleSelectionBox, hBox, hBox2, hBox2a, hBox3, hBox4, buttonBox, field);
+        HBox buttonBox = new HBox(10, scenicViewButton, generateButton, clearButton);
+
+        VBox vbox = new VBox(10,
+                field,
+                buttonBox,
+                new Separator(Orientation.HORIZONTAL),
+                hBox1,
+                hBox2,
+                hBox2a,
+                hBox3,
+                hBox4,
+                new Separator(Orientation.HORIZONTAL),
+                createNewItemBox,
+                showPromptText,
+                usePlaceholder,
+                hideWithSingleChoiceBox,
+                showSearchIconBox,
+                showLeftRightNodes,
+                singleSelectionBox);
+
         vbox.setPadding(new Insets(20));
+        vbox.setMinHeight(Region.USE_PREF_SIZE);
 
-        CSSFX.start();
+        field.getTags().add(new Country("Germany"));
 
         Scene scene = new Scene(vbox);
+
         primaryStage.setTitle("Tags Field");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
         primaryStage.centerOnScreen();
         primaryStage.show();
+
     }
 
     public static void main(String[] args) {

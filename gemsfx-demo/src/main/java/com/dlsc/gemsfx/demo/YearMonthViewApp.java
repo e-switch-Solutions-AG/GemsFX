@@ -1,8 +1,6 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.YearMonthView;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -10,11 +8,15 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class YearMonthViewApp extends Application {
+import java.time.YearMonth;
+
+public class YearMonthViewApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         YearMonthView view = new YearMonthView();
+        view.setEarliestMonth(YearMonth.now().minusYears(1));
+        view.setLatestMonth(YearMonth.now());
         view.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
         VBox vBox = new VBox(view);
@@ -23,12 +25,11 @@ public class YearMonthViewApp extends Application {
         vBox.setAlignment(Pos.CENTER);
 
         Scene scene = new Scene(vBox);
-        CSSFX.start(scene);
 
         stage.setTitle("YearMonthView");
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.centerOnScreen();
+
         stage.show();
     }
 

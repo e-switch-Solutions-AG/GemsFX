@@ -2,8 +2,6 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.ScreensView;
 import com.dlsc.gemsfx.util.SessionManager;
-import com.dlsc.gemsfx.util.StageManager;
-import javafx.application.Application;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
@@ -19,10 +17,10 @@ import javafx.stage.Stage;
 
 import java.util.prefs.Preferences;
 
-public class ScreensViewApp extends Application {
+public class ScreensViewApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         ScreensView screensView = new ScreensView();
 
         SessionManager sessionManager = new SessionManager(Preferences.userNodeForPackage(ScreensViewApp.class));
@@ -54,7 +52,11 @@ public class ScreensViewApp extends Application {
         showWindows.selectedProperty().bindBidirectional(this.showWindows);
 
         HBox controls = new HBox(10, enableWindowDragging, showShadow, showReflection, showWindows, showWallpaper);
-        controls.setStyle("-fx-background-color: white");
+        if (Boolean.getBoolean("atlantafx")) {
+            controls.setStyle("-fx-background-color: -color-bg-default;");
+        } else {
+            controls.setStyle("-fx-background-color: white");
+        }
         controls.setPadding(new Insets(10, 10, 10, 10));
         controls.setAlignment(Pos.CENTER_RIGHT);
 
@@ -70,7 +72,6 @@ public class ScreensViewApp extends Application {
         stage2.setScene(new Scene(new Label("Hello World")));
         stage2.setAlwaysOnTop(true);
         stage2.initOwner(stage);
-        StageManager.install(stage2, "screens.view.app.stage2");
         stage2.show();
 
         stage.setTitle("Screens View Demo");
@@ -78,7 +79,6 @@ public class ScreensViewApp extends Application {
         stage.setWidth(1000);
         stage.setHeight(850);
         stage.centerOnScreen();
-        StageManager.install(stage, "screens.view.app.stage1");
         stage.show();
     }
 

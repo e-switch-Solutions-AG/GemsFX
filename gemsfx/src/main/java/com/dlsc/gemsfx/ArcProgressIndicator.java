@@ -1,8 +1,12 @@
 package com.dlsc.gemsfx;
 
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.AccessibleRole;
 import javafx.css.CssMetaData;
+import javafx.css.PseudoClass;
 import javafx.css.Styleable;
 import javafx.css.StyleableObjectProperty;
 import javafx.css.StyleableProperty;
@@ -15,7 +19,8 @@ import javafx.util.StringConverter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
+import java.text.MessageFormat;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * ArcProgressIndicator is a visual control used to indicate the progress of a task.
@@ -48,12 +53,24 @@ import java.util.Objects;
  *     // Initializes with no progress and no animation.
  *     ArcProgressIndicator progressIndicator = new ArcProgressIndicator(0.0);
  * </pre>
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-progress-arc-type}</td><td>{@code ArcType}</td><td>Arc type used to display the progress</td></tr>
+ *     <tr><td>{@code -fx-style-type}</td><td>{@code StyleType}</td><td>Visualization style type of the progress arc</td></tr>
+ *     <tr><td>{@code -fx-track-arc-type}</td><td>{@code ArcType}</td><td>Arc type used to display the track</td></tr>
+ *   </tbody>
+ * </table>
  */
-public class ArcProgressIndicator extends ProgressIndicator {
+public abstract class ArcProgressIndicator extends ProgressIndicator {
 
     private static final String DEFAULT_STYLE_CLASS = "arc-progress-indicator";
     private static final ArcType DEFAULT_PROGRESS_ARC_TYPE = ArcType.OPEN;
     private static final ArcType DEFAULT_TRACK_ARC_TYPE = ArcType.CHORD;
+    private static final StyleType DEFAULT_STYLE_TYPE = StyleType.DEFAULT;
 
     private static final StringConverter<Double> DEFAULT_CONVERTER = new StringConverter<>() {
         @Override
@@ -64,9 +81,11 @@ public class ArcProgressIndicator extends ProgressIndicator {
             }
             // completed
             if (progress == 1.0) {
-                return "Completed";
+                return ResourceBundleManager.getString(ResourceBundleManager.BundleType.ARC_PROGRESS_INDICATOR, "status.completed", "Completed");
             }
-            return String.format("%.0f%%", progress * 100);
+
+            int percent = (int) Math.floor(progress * 100); // make sure 99.8 becomes 99%, not 100%.
+            return percent + "%";
         }
 
         @Override
@@ -75,18 +94,40 @@ public class ArcProgressIndicator extends ProgressIndicator {
         }
     };
 
+    /**
+     * Constructs a new arc progress indicator in indeterminate mode.
+     */
     public ArcProgressIndicator() {
         this(INDETERMINATE_PROGRESS);
     }
 
+    /**
+     * Constructs a new arc progress indicator with the specified progress.
+     *
+     * @param progress the initial progress value
+     */
     public ArcProgressIndicator(double progress) {
         super(progress);
         getStyleClass().add(DEFAULT_STYLE_CLASS);
+
+        AccessibilityUtil.setRole(this, AccessibleRole.PROGRESS_INDICATOR);
+        String loadingText = ResourceBundleManager.getString(ResourceBundleManager.BundleType.ARC_PROGRESS_INDICATOR, "accessible.text.loading", "loading");
+        String percentPattern = ResourceBundleManager.getString(ResourceBundleManager.BundleType.ARC_PROGRESS_INDICATOR, "accessible.text.percent", "{0} percent");
+        AccessibilityUtil.bindAccessibleText(this, Bindings.createStringBinding(() -> {
+            double value = getProgress();
+            return value < 0 ? loadingText : MessageFormat.format(percentPattern, Math.round(value * 100));
+        }, progressProperty()));
+
+        styleTypeProperty().addListener((o, oldV, newV) -> {
+            updatePseudoClasses();
+        });
+        updatePseudoClasses();
     }
 
-    @Override
-    public String getUserAgentStylesheet() {
-        return Objects.requireNonNull(ArcProgressIndicator.class.getResource("arc-progress-indicator.css")).toExternalForm();
+    private void updatePseudoClasses() {
+        pseudoClassStateChanged(PseudoClass.getPseudoClass("bold-style"), getStyleType().equals(StyleType.BOLD));
+        pseudoClassStateChanged(PseudoClass.getPseudoClass("thin-style"), getStyleType().equals(StyleType.THIN));
+        pseudoClassStateChanged(PseudoClass.getPseudoClass("sector-style"), getStyleType().equals(StyleType.SECTOR));
     }
 
     private final ObjectProperty<StringConverter<Double>> converter = new SimpleObjectProperty<>(this, "converter", DEFAULT_CONVERTER);
@@ -132,6 +173,11 @@ public class ArcProgressIndicator extends ProgressIndicator {
 
     /**
      * The arc type property defines the type of the arc that is used to display the progress.
+     * <p>
+     * Can be set via CSS using the {@code -fx-progress-arc-type} property.
+     * Valid values are: {@code open}, {@code chord}, {@code round}.
+     * The default value is {@code open}.
+     * </p>
      *
      * @return the arc type property for the progress
      */
@@ -140,7 +186,7 @@ public class ArcProgressIndicator extends ProgressIndicator {
             progressArcType = new StyleableObjectProperty<>(DEFAULT_PROGRESS_ARC_TYPE) {
                 @Override
                 public Object getBean() {
-                    return this;
+                    return ArcProgressIndicator.this;
                 }
 
                 @Override
@@ -168,7 +214,12 @@ public class ArcProgressIndicator extends ProgressIndicator {
     private ObjectProperty<ArcType> trackArcType;
 
     /**
-     * The arc type property defines the type of the arc that is used to display the track.
+     * The track arc type property defines the type of the arc that is used to display the track.
+     * <p>
+     * Can be set via CSS using the {@code -fx-track-arc-type} property.
+     * Valid values are: {@code open}, {@code chord}, {@code round}.
+     * The default value is {@code chord}.
+     * </p>
      *
      * @return the arc type property for the track
      */
@@ -177,7 +228,7 @@ public class ArcProgressIndicator extends ProgressIndicator {
             trackArcType = new StyleableObjectProperty<>(DEFAULT_TRACK_ARC_TYPE) {
                 @Override
                 public Object getBean() {
-                    return this;
+                    return ArcProgressIndicator.this;
                 }
 
                 @Override
@@ -202,7 +253,85 @@ public class ArcProgressIndicator extends ProgressIndicator {
         trackArcTypeProperty().set(trackArcType);
     }
 
+    /**
+     * Defines the visual style used to render the progress arc.
+     */
+    public enum StyleType {
+        /**
+         * The default arc style.
+         */
+        DEFAULT,
+        /**
+         * A thicker arc style.
+         */
+        BOLD,
+        /**
+         * A thinner arc style.
+         */
+        THIN,
+        /**
+         * A filled sector style.
+         */
+        SECTOR;
+    }
+
+    private ObjectProperty<StyleType> styleType;
+
+    /**
+     * The style type property defines the visualization type of the arc that is used to display the progress.
+     * <p>
+     * Can be set via CSS using the {@code -fx-style-type} property.
+     * Valid values are: {@code default}, {@code bold}, {@code thin}, {@code sector}.
+     * The default value is {@code default}.
+     * </p>
+     *
+     * @return the style type property for the progress
+     */
+    public final ObjectProperty<StyleType> styleTypeProperty() {
+        if (styleType == null) {
+            styleType = new StyleableObjectProperty<>(DEFAULT_STYLE_TYPE) {
+                @Override
+                public Object getBean() {
+                    return ArcProgressIndicator.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "styleType";
+                }
+
+                @Override
+                public CssMetaData<? extends Styleable, StyleType> getCssMetaData() {
+                    return StyleableProperties.STYLE_TYPE;
+                }
+            };
+        }
+        return styleType;
+    }
+
+    public final StyleType getStyleType() {
+        return styleType == null ? DEFAULT_STYLE_TYPE : styleType.get();
+    }
+
+    public final void setStyleType(StyleType styleType) {
+        styleTypeProperty().set(styleType);
+    }
+
     private static class StyleableProperties {
+
+        private static final CssMetaData<ArcProgressIndicator, StyleType> STYLE_TYPE = new CssMetaData<>(
+                "-fx-style-type", new EnumConverter<>(StyleType.class), DEFAULT_STYLE_TYPE) {
+
+            @Override
+            public StyleableProperty<StyleType> getStyleableProperty(ArcProgressIndicator control) {
+                return (StyleableProperty<StyleType>) control.styleTypeProperty();
+            }
+
+            @Override
+            public boolean isSettable(ArcProgressIndicator control) {
+                return control.styleType == null || !control.styleType.isBound();
+            }
+        };
 
         private static final CssMetaData<ArcProgressIndicator, ArcType> PROGRESS_ARC_TYPE = new CssMetaData<>(
                 "-fx-progress-arc-type", new EnumConverter<>(ArcType.class), DEFAULT_PROGRESS_ARC_TYPE) {
@@ -236,7 +365,7 @@ public class ArcProgressIndicator extends ProgressIndicator {
 
         static {
             final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(ProgressIndicator.getClassCssMetaData());
-            Collections.addAll(styleables, PROGRESS_ARC_TYPE, TRACK_ARC_TYPE);
+            Collections.addAll(styleables, STYLE_TYPE, PROGRESS_ARC_TYPE, TRACK_ARC_TYPE);
             STYLEABLES = Collections.unmodifiableList(styleables);
         }
     }
@@ -246,6 +375,11 @@ public class ArcProgressIndicator extends ProgressIndicator {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata for this class.
+     *
+     * @return the CSS metadata for this class
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return ArcProgressIndicator.StyleableProperties.STYLEABLES;
     }

@@ -7,6 +7,8 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Scene;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
@@ -21,6 +23,7 @@ import javafx.stage.StageStyle;
 import javafx.util.Callback;
 
 import java.util.Objects;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A view for displaying the geometry of the currently available screens. This
@@ -43,6 +46,7 @@ public class ScreensView extends Control {
      */
     public ScreensView() {
         getStyleClass().add("screens-view");
+        AccessibilityUtil.setRole(this, AccessibleRole.NODE, ResourceBundleManager.getString(ResourceBundleManager.BundleType.SCREENS_VIEW, "accessible.role-description", "screens"));
         setWallpaperProvider(screen -> DEFAULT_WALLPAPER);
         setFocusTraversable(false);
 
@@ -59,11 +63,21 @@ public class ScreensView extends Control {
         setReflection(reflection);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new ScreensViewSkin(this);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(ScreensView.class.getResource("screens-view.css")).toExternalForm();
@@ -80,7 +94,7 @@ public class ScreensView extends Control {
         stage.setScene(new Scene(view));
         stage.setX(10);
         stage.setY(20);
-        stage.setTitle("Screens");
+        stage.setTitle(ResourceBundleManager.getString(ResourceBundleManager.BundleType.SCREENS_VIEW, "window.title", "Screens"));
         stage.show();
         return view;
     }

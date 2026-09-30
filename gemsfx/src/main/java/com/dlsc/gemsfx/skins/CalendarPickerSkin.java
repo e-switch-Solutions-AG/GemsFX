@@ -18,6 +18,12 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Objects;
 
+/**
+ * Skin for the {@link CalendarPicker} control.
+ * <p>
+ * The skin renders the editor and arrow button and uses the associated
+ * {@link CalendarView} as popup content for choosing a single date.
+ */
 public class CalendarPickerSkin extends ToggleVisibilityComboBoxSkin<CalendarPicker> {
 
     private CalendarView view;
@@ -25,18 +31,29 @@ public class CalendarPickerSkin extends ToggleVisibilityComboBoxSkin<CalendarPic
     private final TextField editor;
     private final StackPane arrowButton;
 
+    private final ChangeListener<LocalDate> valueChangeListener = (obs, ov, nv) -> {
+        if (view != null) {
+            LocalDate date = getSkinnable().getValue();
+            view.setYearMonth(date == null ? YearMonth.now() : YearMonth.from(date));
+        }
+    };
+
+    private final ChangeListener<SelectionModel> selectionModelChangeListener = (obs, oldModel, newModel) ->
+            bindSelectionModel(oldModel, newModel);
+
+    /**
+     * Creates a skin for the given calendar picker.
+     *
+     * @param picker the calendar picker rendered by this skin
+     */
     public CalendarPickerSkin(CalendarPicker picker) {
         super(picker);
 
-        picker.valueProperty().addListener(it -> {
-            if (view != null) {
-                LocalDate date = picker.getValue();
-                view.setYearMonth(date == null ? YearMonth.now() : YearMonth.from(date));
-            }
-        });
+        register(picker.valueProperty(), valueChangeListener);
 
         Region arrow = new Region();
         arrow.getStyleClass().add("arrow");
+        arrow.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
         arrowButton = new StackPane(arrow);
         arrowButton.setFocusTraversable(false);
@@ -89,11 +106,20 @@ public class CalendarPickerSkin extends ToggleVisibilityComboBoxSkin<CalendarPic
                 view.getSelectionModel().select(pickerValue);
             }
             view.setFocusTraversable(false); // keep the picker focused / blue border
-            view.selectionModelProperty().addListener((obs, oldModel, newModel) -> bindSelectionModel(oldModel, newModel));
+            view.selectionModelProperty().addListener(selectionModelChangeListener);
             bindSelectionModel(null, view.getSelectionModel());
         }
 
         return view;
+    }
+
+    @Override
+    public void dispose() {
+        if (view != null) {
+            view.selectionModelProperty().removeListener(selectionModelChangeListener);
+            bindSelectionModel(view.getSelectionModel(), null);
+        }
+        super.dispose();
     }
 
     private final ChangeListener<LocalDate> localDateChangeListener = (obs, oldValue, newValue) -> {

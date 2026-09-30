@@ -12,17 +12,33 @@ import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Skin;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.util.Objects;
 
+/**
+ * Popup control used by {@link SearchField} to display suggestions.
+ * <p>
+ * The popup tracks the owning search field, sizes itself to the field, and
+ * delegates its visual content to {@link SearchFieldPopupSkin}.
+ *
+ * @param <T> the suggestion item type
+ */
 public class SearchFieldPopup<T> extends CustomPopupControl {
 
+    /**
+     * The default style class for the popup.
+     */
     public static final String DEFAULT_STYLE_CLASS = "search-field-popup";
 
     private final ObservableList<T> suggestions = FXCollections.observableArrayList();
     private final SearchField<T> searchField;
 
+    /**
+     * Creates a new popup for the given search field.
+     *
+     * @param searchField the search field that owns this popup
+     */
     public SearchFieldPopup(SearchField<T> searchField) {
         this.searchField = Objects.requireNonNull(searchField);
 
@@ -77,10 +93,22 @@ public class SearchFieldPopup<T> extends CustomPopupControl {
         });
     }
 
+    /**
+     * Returns the search field that owns this popup.
+     *
+     * @return the owning search field
+     */
     public SearchField<T> getSearchField() {
         return searchField;
     }
 
+    /**
+     * Returns this popup's observable suggestions list.
+     * <p>
+     * The default popup skin displays suggestions from the owning search field.
+     *
+     * @return this popup's suggestions list
+     */
     public ObservableList<T> getSuggestions() {
         return suggestions;
     }
@@ -90,13 +118,19 @@ public class SearchFieldPopup<T> extends CustomPopupControl {
      * by pressing enter immediately.
      */
     private void selectFirstSuggestion() {
-        SearchFieldPopupSkin<T> skin = (SearchFieldPopupSkin) getSkin();
+        @SuppressWarnings("rawtypes")
+        SearchFieldPopupSkin skin = (SearchFieldPopupSkin) getSkin();
         ListView<?> listView = (ListView<?>) skin.getNode();
         if (listView.getItems() != null && !listView.getItems().isEmpty()) {
             listView.getSelectionModel().select(0);
         }
     }
 
+    /**
+     * Creates the default skin for this popup.
+     *
+     * @return the default popup skin
+     */
     protected Skin<?> createDefaultSkin() {
         return new SearchFieldPopupSkin<>(this);
     }

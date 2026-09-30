@@ -10,17 +10,19 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
+import javafx.collections.WeakMapChangeListener;
+import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.SkinBase;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -36,7 +38,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class StripViewSkin<T> extends SkinBase<StripView<T>> {
+/**
+ * Skin for {@link StripView}.
+ * <p>
+ * The skin lays out strip cells in a horizontal container, clips them through a
+ * {@link MaskedView}, and provides keyboard, mouse, and scroll navigation.
+ *
+ * @param <T> the strip item type
+ */
+public class StripViewSkin<T> extends GemsSkinBase<StripView<T>> {
 
     private static final String SCROLL_TO_KEY = "scroll.to";
 
@@ -47,6 +57,24 @@ public class StripViewSkin<T> extends SkinBase<StripView<T>> {
     private final Map<T, Node> nodeMap = new HashMap<>();
 
     private final MaskedView maskedView;
+
+    private final MapChangeListener<? super Object, ? super Object> mapChangeListener = change -> {
+        if (change.wasAdded() && change.getKey().equals(SCROLL_TO_KEY)) {
+            @SuppressWarnings("unchecked")
+            T item = (T) change.getValueAdded();
+            getSkinnable().getProperties().remove(SCROLL_TO_KEY); // avoid a memory leak
+            if (item != null) {
+                Platform.runLater(() -> scrollTo(item));
+            }
+        }
+    };
+
+    private final WeakMapChangeListener<? super Object, ? super Object> weakMapChangeListener = new WeakMapChangeListener<>(mapChangeListener);
+
+    private final DoubleProperty translateX = new SimpleDoubleProperty();
+    private final ListChangeListener<T> itemsChangeListener = it -> buildContent();
+    private final EventHandler<KeyEvent> keyPressHandler = this::handleKeyPress;
+    private final EventHandler<ScrollEvent> scrollHandler = evt -> translateX.set(translateX.get() + evt.getDeltaY());
 
     /**
      * Constructor for all SkinBase instances.
@@ -87,10 +115,12 @@ public class StripViewSkin<T> extends SkinBase<StripView<T>> {
         setupBindings();
         setupEventHandlers();
 
-        strip.itemsProperty().addListener((Observable it) -> buildContent());
+        register(strip.itemsProperty(), itemsChangeListener);
         buildContent();
 
-        strip.addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyPress);
+        registerFilter(strip, KeyEvent.KEY_PRESSED, keyPressHandler);
+
+        register(getSkinnable().getProperties(), weakMapChangeListener);
     }
 
     private void handleKeyPress(KeyEvent event) {
@@ -144,9 +174,6 @@ public class StripViewSkin<T> extends SkinBase<StripView<T>> {
 
         if (node != null) {
             StripView<T> strip = getSkinnable();
-
-            strip.getProperties().remove(SCROLL_TO_KEY);
-
             Bounds nodeBounds = node.localToParent(node.getLayoutBounds());
 
             double x = -nodeBounds.getMinX() + strip.getWidth() / 2 - nodeBounds.getWidth() / 2;
@@ -261,7 +288,7 @@ public class StripViewSkin<T> extends SkinBase<StripView<T>> {
         leftBtn.setOnMouseClicked(event -> scroll(true));
         rightBtn.setOnMouseClicked(event -> scroll(false));
 
-        getSkinnable().addEventFilter(ScrollEvent.SCROLL, evt -> translateX.set(translateX.get() + evt.getDeltaY()));
+        registerFilter(getSkinnable(), ScrollEvent.SCROLL, scrollHandler);
     }
 
     private void fixTranslate() {
@@ -277,7 +304,6 @@ public class StripViewSkin<T> extends SkinBase<StripView<T>> {
     }
 
     private Timeline timeline;
-    private final DoubleProperty translateX = new SimpleDoubleProperty();
 
     private void scroll(boolean scrollToRight) {
         // In case of the timeline is already playing the animation must first finish.
@@ -305,11 +331,5 @@ public class StripViewSkin<T> extends SkinBase<StripView<T>> {
 
         leftBtn.resizeRelocate(contentX, contentY + (contentHeight - leftBtn.prefHeight(-1)) / 2, leftBtn.prefWidth(-1), leftBtn.prefHeight(-1));
         rightBtn.resizeRelocate(contentX + contentWidth - rightBtn.prefWidth(-1), contentY + (contentHeight - rightBtn.prefHeight(-1)) / 2, rightBtn.prefWidth(-1), rightBtn.prefHeight(-1));
-
-        @SuppressWarnings("unchecked")
-        T item = (T) getSkinnable().getProperties().get(SCROLL_TO_KEY);
-        if (item != null) {
-            Platform.runLater(() -> scrollTo(item));
-        }
     }
 }

@@ -1,7 +1,7 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.EmailField;
-import javafx.application.Application;
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
@@ -16,25 +16,29 @@ import org.kordamp.ikonli.materialdesign.MaterialDesign;
 
 import java.util.Random;
 
-public class EmailFieldApp extends Application {
+public class EmailFieldApp extends GemApplication {
 
     private final Random random = new Random();
 
     @Override
-    public void start(Stage stage) {
-        EmailField view = new EmailField();
+    public void start(Stage stage) { super.start(stage);
+        EmailField emailField = new EmailField();
+        emailField.setPromptText("Enter an email address");
 
         CheckBox required = new CheckBox("Required");
-        required.selectedProperty().bindBidirectional(view.requiredProperty());
+        required.selectedProperty().bindBidirectional(emailField.requiredProperty());
 
         // When user types '@' in the email field, show a list of suggestions
         CheckBox autoCompletion = new CheckBox("Auto-Complete Domain");
-        autoCompletion.selectedProperty().bindBidirectional(view.autoDomainCompletionEnabledProperty());
+        autoCompletion.selectedProperty().bindBidirectional(emailField.autoDomainCompletionEnabledProperty());
+
+        CheckBox multipleAddresses = new CheckBox("Multiple addresses");
+        multipleAddresses.selectedProperty().bindBidirectional(emailField.supportingMultipleAddressesProperty());
 
         CheckBox enableCustomCell = new CheckBox("Enable Custom Cell");
         enableCustomCell.selectedProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal) {
-                view.setDomainListCellFactory(param -> new ListCell<>() {
+                emailField.setDomainListCellFactory(param -> new ListCell<>() {
                     @Override
                     protected void updateItem(String item, boolean empty) {
                         super.updateItem(item, empty);
@@ -49,30 +53,46 @@ public class EmailFieldApp extends Application {
                     }
                 });
             } else {
-                view.setDomainListCellFactory(null);
+                emailField.setDomainListCellFactory(null);
             }
         });
 
         CheckBox showMailIcon = new CheckBox("Show Mail Icon");
-        showMailIcon.selectedProperty().bindBidirectional(view.showMailIconProperty());
+        showMailIcon.selectedProperty().bindBidirectional(emailField.showMailIconProperty());
 
         CheckBox showValidationIcon = new CheckBox("Show Validation Icon");
-        showValidationIcon.selectedProperty().bindBidirectional(view.showValidationIconProperty());
+        showValidationIcon.selectedProperty().bindBidirectional(emailField.showValidationIconProperty());
 
-        TextField invalidTextField = new TextField(view.getInvalidText());
+        TextField invalidTextField = new TextField(emailField.getInvalidText());
         invalidTextField.setPromptText("Invalid text for the tooltip");
-        view.invalidTextProperty().bind(invalidTextField.textProperty());
+        emailField.invalidTextProperty().bind(invalidTextField.textProperty());
 
-        VBox topBox = new VBox(10, required, autoCompletion, enableCustomCell, showMailIcon, showValidationIcon, new Label("Text to show when invalid:"), invalidTextField);
+        Label resultLabel = new Label("Entered address(es)");
+        resultLabel.textProperty().bind(Bindings.createStringBinding(() -> {
+            if (emailField.isValid()) {
+                if (emailField.isSupportingMultipleAddresses()) {
+                    return String.join(", ", emailField.getMultipleEmailAddresses());
+                }
+                return emailField.getEmailAddress();
+            } else {
+                if (emailField.isSupportingMultipleAddresses()) {
+                    return "Invalid: " + String.join(", ", emailField.getMultipleEmailAddresses());
+                }
+                return "Invalid " + emailField.getEmailAddress();
+            }
+        }, emailField.supportingMultipleAddressesProperty(), emailField.emailAddressProperty(), emailField.getMultipleEmailAddresses()));
 
-        VBox box = new VBox(20, topBox, view);
+        VBox optionsBox = new VBox(10, required, autoCompletion, multipleAddresses, enableCustomCell, showMailIcon, showValidationIcon, new Label("Text to show when invalid:"), invalidTextField);
+
+        VBox box = new VBox(10, new Label("Enter an email address:"), emailField, resultLabel, optionsBox);
         box.setPrefWidth(300);
         box.setPadding(new Insets(10));
+
         Scene scene = new Scene(box);
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.centerOnScreen();
         stage.setTitle("Email Field");
+
         stage.show();
     }
 

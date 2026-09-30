@@ -1,7 +1,6 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.Spacer;
-import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -9,9 +8,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class SpacerApp extends Application {
+public class SpacerApp extends GemApplication {
     @Override
-    public void start(Stage stage) throws Exception {
+    public void start(Stage stage) {
+        super.start(stage);
         VBox root = new VBox(10);
         root.setStyle("-fx-padding: 10px;-fx-alignment: top_center;");
 
@@ -41,6 +41,7 @@ public class SpacerApp extends Application {
 
         stage.setScene(new Scene(root, 380, 380));
         stage.setTitle("Spacer Demo");
+
         stage.show();
     }
 

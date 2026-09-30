@@ -1,13 +1,16 @@
 package com.dlsc.gemsfx.skins;
 
 import com.dlsc.gemsfx.ChipView;
+import com.dlsc.gemsfx.ChipsViewContainer;
 import com.dlsc.gemsfx.FilterView;
 import com.dlsc.gemsfx.FilterView.Filter;
+import com.dlsc.gemsfx.FilterView.FilterGroup;
 import com.dlsc.gemsfx.SearchTextField;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
-import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
@@ -15,44 +18,66 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.SkinBase;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
+import java.text.MessageFormat;
 
-public class FilterViewSkin<T> extends SkinBase<FilterView<T>> {
+/**
+ * Skin for {@link FilterView}.
+ * <p>
+ * The skin builds a header with title, subtitle, optional extras, and a search field, followed by filter group menus
+ * and chips for the currently active filters.
+ *
+ * @param <T> the item type filtered by the view
+ */
+public class FilterViewSkin<T> extends GemsSkinBase<FilterView<T>> {
 
     private final SearchTextField searchTextField;
     private final HBox filterGroupsPane = new HBox();
-    private final FlowPane filtersPane = new FlowPane();
+    private final ChipsViewContainer filtersPane = new ChipsViewContainer();
     private final HBox headerBox = new HBox();
     private final ScrollPane scrollPane = new ScrollPane();
     private final VBox container;
 
+    private final Map<Filter, CheckMenuItem> filterItemMap = new HashMap<>();
+
+    private final InvalidationListener updateGroupsListener = it -> updateGroups();
+    private final ListChangeListener<FilterGroup<T>> filterGroupsChangeListener = it -> updateGroups();
+    private final ListChangeListener<Filter<T>> filtersChangeListener = it -> updateFilters();
+    private final InvalidationListener filterTextListener = it -> updateFilters();
+    private final InvalidationListener scrollThresholdListener = it -> updateFilters();
+    private final ListChangeListener<Filter<T>> filtersMenuUpdateListener = it -> Platform.runLater(() -> {
+        for (Filter filter : filterItemMap.keySet()) {
+            CheckMenuItem menuItem = filterItemMap.get(filter);
+            menuItem.setSelected(getSkinnable().getFilters().contains(filter));
+        }
+    });
+    private final ChangeListener<javafx.scene.Node> extrasChangeListener = (obs, oldExtras, newExtras) -> {
+        if (oldExtras != null) {
+            headerBox.getChildren().remove(oldExtras);
+        }
+        if (newExtras != null) {
+            headerBox.getChildren().add(newExtras);
+        }
+    };
+
+    /**
+     * Creates a skin for the given filter view.
+     *
+     * @param view the filter view rendered by this skin
+     */
     public FilterViewSkin(FilterView<T> view) {
         super(view);
 
         searchTextField = view.getSearchTextField();
-
-        InvalidationListener updateHeaderListener = it -> updateHeaderBox();
-        view.titleLabelProperty().addListener(updateHeaderListener);
-        view.titlePostfixLabelProperty().addListener(updateHeaderListener);
-        view.subtitleLabelProperty().addListener(updateHeaderListener);
-
-        view.extrasProperty().addListener((obs, oldExtras, newExtras) -> {
-            if (oldExtras != null) {
-                headerBox.getChildren().remove(oldExtras);
-            }
-            if (newExtras != null) {
-                headerBox.getChildren().add(newExtras);
-            }
-        });
+        createHeaderBox();
 
         filterGroupsPane.getStyleClass().add("filter-groups");
         filterGroupsPane.setFillHeight(true);
@@ -69,12 +94,12 @@ public class FilterViewSkin<T> extends SkinBase<FilterView<T>> {
         searchTextField.managedProperty().bind(view.textFilterProviderProperty().isNotNull());
         searchTextField.textProperty().bindBidirectional(view.filterTextProperty());
 
-        view.textFilterProviderProperty().addListener(it -> updateGroups());
-        view.getFilterGroups().addListener((Observable it) -> updateGroups());
+        register(view.textFilterProviderProperty(), updateGroupsListener);
+        register(view.getFilterGroups(), filterGroupsChangeListener);
 
-        view.getFilters().addListener((Observable it) -> updateFilters());
-        view.filterTextProperty().addListener(it -> updateFilters());
-        view.textFilterProviderProperty().addListener(it -> updateFilters());
+        register(view.getFilters(), filtersChangeListener);
+        register(view.filterTextProperty(), filterTextListener);
+        register(view.textFilterProviderProperty(), filterTextListener);
 
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
@@ -83,8 +108,8 @@ public class FilterViewSkin<T> extends SkinBase<FilterView<T>> {
         scrollPane.contentProperty().bind(
                 Bindings.when(Bindings.size(view.filtersProperty()).greaterThan(view.scrollThresholdProperty()))
                         .then(filtersPane)
-                        .otherwise((FlowPane) null));
-        view.scrollThresholdProperty().addListener(it -> updateFilters());
+                        .otherwise((ChipsViewContainer) null));
+        register(view.scrollThresholdProperty(), scrollThresholdListener);
 
         container = new VBox(headerBox, filterGroupsPane, filtersPane);
         container.getStyleClass().add("filter-container");
@@ -94,52 +119,54 @@ public class FilterViewSkin<T> extends SkinBase<FilterView<T>> {
         updateGroups();
         updateFilters();
 
-        getSkinnable().getFilters().addListener((Observable it) -> Platform.runLater(() -> {
-            for (Filter filter : filterItemMap.keySet()) {
-                CheckMenuItem menuItem = filterItemMap.get(filter);
-                menuItem.setSelected(getSkinnable().getFilters().contains(filter));
-            }
-        }));
+        register(getSkinnable().getFilters(), filtersMenuUpdateListener);
 
         headerBox.setFillHeight(true);
         headerBox.getStyleClass().add("header-box");
         headerBox.visibleProperty().bind(view.showHeaderProperty());
         headerBox.managedProperty().bind(view.showHeaderProperty());
 
-        updateHeaderBox();
+        register(view.extrasProperty(), extrasChangeListener);
     }
 
-    private void updateHeaderBox() {
+    private void createHeaderBox() {
         FilterView<T> view = getSkinnable();
 
-        Label titleLabel = view.getTitleLabel();
-        titleLabel.textProperty().bind(view.titleProperty());
+        Label titleLabel = new Label();
         titleLabel.getStyleClass().add("title");
+        titleLabel.textProperty().bind(view.titleProperty());
+        titleLabel.graphicProperty().bind(view.titleGraphicProperty());
+        titleLabel.managedProperty().bind(titleLabel.visibleProperty());
+        titleLabel.visibleProperty().bind(view.titleProperty().isNotEmpty().or(view.titleGraphicProperty().isNotNull()));
 
-        Label titlePostfixLabel = view.getTitlePostfixLabel();
-        titlePostfixLabel.textProperty().bind(view.titlePostfixProperty());
+        Label titlePostfixLabel = new Label();
         titlePostfixLabel.getStyleClass().addAll("title", "title-postfix");
+        titlePostfixLabel.textProperty().bind(view.titlePostfixProperty());
+        titlePostfixLabel.graphicProperty().bind(view.titlePostfixGraphicProperty());
+        titlePostfixLabel.managedProperty().bind(titlePostfixLabel.visibleProperty());
+        titlePostfixLabel.visibleProperty().bind(view.titlePostfixProperty().isNotEmpty().or(view.titlePostfixGraphicProperty().isNotNull()));
 
         HBox titleBox = new HBox(titleLabel, titlePostfixLabel);
         titleBox.getStyleClass().add("title-box");
 
-        Label subtitleLabel = view.getSubtitleLabel();
-        subtitleLabel.textProperty().bind(view.subtitleProperty());
+        Label subtitleLabel = new Label();
         subtitleLabel.getStyleClass().add("subtitle");
+        subtitleLabel.textProperty().bind(view.subtitleProperty());
+        subtitleLabel.graphicProperty().bind(view.subtitleGraphicProperty());
+        subtitleLabel.managedProperty().bind(subtitleLabel.visibleProperty());
+        subtitleLabel.visibleProperty().bind(view.subtitleProperty().isNotEmpty().or(view.subtitleGraphicProperty().isNotNull()));
 
         VBox titleAndSubtitleBox = new VBox(titleBox, subtitleLabel);
         titleAndSubtitleBox.getStyleClass().add("title-subtitle-box");
 
         HBox.setHgrow(titleAndSubtitleBox, Priority.ALWAYS);
 
+        headerBox.getChildren().setAll(titleAndSubtitleBox, searchTextField);
+
         if (view.getExtras() != null) {
-            headerBox.getChildren().setAll(titleAndSubtitleBox, searchTextField, view.getExtras());
-        } else {
-            headerBox.getChildren().setAll(titleAndSubtitleBox, searchTextField);
+            headerBox.getChildren().add(view.getExtras());
         }
     }
-
-    private final Map<Filter, CheckMenuItem> filterItemMap = new HashMap<>();
 
     private void updateGroups() {
         filterGroupsPane.getChildren().clear();
@@ -154,7 +181,7 @@ public class FilterViewSkin<T> extends SkinBase<FilterView<T>> {
 
             HBox.setHgrow(menuButton, Priority.ALWAYS);
 
-            MenuItem all = new MenuItem("All");
+            MenuItem all = new MenuItem(ResourceBundleManager.getString(ResourceBundleManager.BundleType.FILTER_VIEW, "menu.select-all", "All"));
             ObservableList<Filter<T>> activeFilters = getSkinnable().getFilters();
 
             all.setOnAction(evt -> {
@@ -163,7 +190,7 @@ public class FilterViewSkin<T> extends SkinBase<FilterView<T>> {
                 activeFilters.addAll(group.getFilters());
             });
 
-            MenuItem none = new MenuItem("None");
+            MenuItem none = new MenuItem(ResourceBundleManager.getString(ResourceBundleManager.BundleType.FILTER_VIEW, "menu.select-none", "None"));
             none.setOnAction(evt -> {
                 // first remove all, otherwise we end up with duplicates
                 activeFilters.removeAll(group.getFilters());
@@ -199,7 +226,7 @@ public class FilterViewSkin<T> extends SkinBase<FilterView<T>> {
     }
 
     private void updateFilters() {
-        filtersPane.getChildren().clear();
+        filtersPane.getChips().clear();
 
         FilterView<T> filterView = getSkinnable();
 
@@ -211,20 +238,20 @@ public class FilterViewSkin<T> extends SkinBase<FilterView<T>> {
                 ChipView<Filter> chipView = new ChipView<>();
                 chipView.setValue(f);
                 chipView.textProperty().bind(f.nameProperty());
-                chipView.setOnClose(filter -> filters.remove(filter));
-                filtersPane.getChildren().add(chipView);
+                chipView.setOnClose(filters::remove);
+                filtersPane.getChips().add(chipView);
             });
 
             String filterText = filterView.getFilterText();
             if (StringUtils.isNotBlank(filterText)) {
                 ChipView<String> chipView = new ChipView<>();
                 chipView.setValue(filterView.getFilterText());
-                chipView.setText("\"" + filterView.getFilterText() + "\"");
+                chipView.setText(MessageFormat.format(ResourceBundleManager.getString(ResourceBundleManager.BundleType.FILTER_VIEW, "format.filter-text-quoted", "\"{0}\""), filterView.getFilterText()));
                 chipView.setOnClose(filter -> filterView.setFilterText(null));
                 filtersPane.getChildren().add(chipView);
             }
 
-            Label clearFilter = new Label("Clear Filter");
+            Label clearFilter = new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.FILTER_VIEW, "action.clear-filter", "Clear Filter"));
             clearFilter.getStyleClass().add("clear-filter-label");
             clearFilter.setOnMouseClicked(evt -> {
                 filters.clear();

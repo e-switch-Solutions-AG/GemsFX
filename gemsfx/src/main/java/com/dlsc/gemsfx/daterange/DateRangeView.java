@@ -3,14 +3,17 @@ package com.dlsc.gemsfx.daterange;
 import com.dlsc.gemsfx.CalendarView;
 import com.dlsc.gemsfx.CalendarView.SelectionModel;
 import com.dlsc.gemsfx.skins.DateRangeViewSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.beans.property.*;
 import javafx.beans.value.WritableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.css.*;
+import javafx.css.converter.BooleanConverter;
 import javafx.css.converter.EnumConverter;
 import javafx.geometry.Orientation;
 import javafx.geometry.Side;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
 
@@ -20,7 +23,23 @@ import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
 import java.util.*;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
+/**
+ * The date range view can be used to define a start and an end date via two {@link CalendarView} instances.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-orientation}</td><td>{@code Orientation}</td><td>Layout of start and end calendars.</td></tr>
+ *     <tr><td>{@code -fx-presets-location}</td><td>{@code Side}</td><td>Location of presets relative to calendar views.</td></tr>
+ *     <tr><td>{@code -fx-show-cancel-and-apply-button}</td><td>{@code boolean}</td><td>Whether to show cancel and apply buttons.</td></tr>
+ *     <tr><td>{@code -fx-show-presets}</td><td>{@code boolean}</td><td>Whether to show the presets section.</td></tr>
+ *   </tbody>
+ * </table>
+ */
 public class DateRangeView extends Control {
 
     private static final PseudoClass VERTICAL_PSEUDOCLASS_STATE = PseudoClass.getPseudoClass("vertical");
@@ -33,13 +52,22 @@ public class DateRangeView extends Control {
 
     private final SelectionModel selectionModel;
 
+    /**
+     * Constructs a new date range view.
+     */
     public DateRangeView() {
         getStyleClass().add("date-range-view");
+        AccessibilityUtil.setRole(this, AccessibleRole.DATE_PICKER, ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "accessible.role-description", "date range"));
 
         setFocusTraversable(false);
 
         selectionModel = new SelectionModel();
         selectionModel.setSelectionMode(SelectionModel.SelectionMode.DATE_RANGE);
+        selectionModel.selectionModeProperty().addListener(it -> {
+            if (!Objects.equals(selectionModel.getSelectionMode(), SelectionModel.SelectionMode.DATE_RANGE)) {
+                throw new UnsupportedOperationException("SINGLE_DATE and MULTIPLE_DATES modes are not supported");
+            }
+        });
 
         startCalendarView = getStartCalendarView();
         startCalendarView.setSelectionModel(selectionModel);
@@ -64,12 +92,6 @@ public class DateRangeView extends Control {
 
     private ObjectProperty<Orientation> orientation;
 
-    /**
-     * Determines how the start and end calendars will be laid out, either next to each
-     * other (horizontal), or one on top of the other (vertical).
-     *
-     * @return the layout orientation of the two calendar views
-     */
     public final void setOrientation(Orientation value) {
         orientationProperty().set(value);
     }
@@ -78,6 +100,17 @@ public class DateRangeView extends Control {
         return orientation == null ? Orientation.HORIZONTAL : orientation.get();
     }
 
+    /**
+     * Determines how the start and end calendars will be laid out, either next to each
+     * other (horizontal), or one on top of the other (vertical).
+     * <p>
+     * Can be set via CSS using the {@code -fx-orientation} property.
+     * Valid values are: {@code HORIZONTAL}, {@code VERTICAL}.
+     * The default value is {@code HORIZONTAL}.
+     * </p>
+     *
+     * @return the layout orientation of the two calendar views
+     */
     public final ObjectProperty<Orientation> orientationProperty() {
         if (orientation == null) {
             orientation = new StyleableObjectProperty<>(Orientation.HORIZONTAL) {
@@ -156,7 +189,7 @@ public class DateRangeView extends Control {
         return calendar;
     }
 
-    private final StringProperty toText = new SimpleStringProperty(this, "toText", "TO");
+    private final StringProperty toText = new SimpleStringProperty(this, "toText", ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "label.to", "TO"));
 
     public final String getToText() {
         return toText.get();
@@ -175,7 +208,7 @@ public class DateRangeView extends Control {
         this.toText.set(toText);
     }
 
-    private final StringProperty cancelText = new SimpleStringProperty(this, "cancelText", "CANCEL");
+    private final StringProperty cancelText = new SimpleStringProperty(this, "cancelText", ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "button.cancel", "CANCEL"));
 
     public final String getCancelText() {
         return cancelText.get();
@@ -194,7 +227,7 @@ public class DateRangeView extends Control {
         this.cancelText.set(cancelText);
     }
 
-    private final StringProperty applyText = new SimpleStringProperty(this, "applyText", "APPLY");
+    private final StringProperty applyText = new SimpleStringProperty(this, "applyText", ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "button.apply", "APPLY"));
 
     public final String getApplyText() {
         return applyText.get();
@@ -213,21 +246,26 @@ public class DateRangeView extends Control {
         this.applyText.set(applyText);
     }
 
-    private final StringProperty presetTitle = new SimpleStringProperty(this, "presetsTitle", "QUICK SELECT");
+    private final StringProperty presetTitle = new SimpleStringProperty(this, "presetsTitle", ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "section.presets.title", "QUICK SELECT"));
 
-    public String getPresetTitle() {
+    public final String getPresetTitle() {
         return presetTitle.get();
     }
 
-    public StringProperty presetTitleProperty() {
+    /**
+     * The name used for the title label of the presets section. E.g. "Quick Selection".
+     *
+     * @return the title for the preset section
+     */
+    public final StringProperty presetTitleProperty() {
         return presetTitle;
     }
 
-    public void setPresetTitle(String presetTitle) {
+    public final void setPresetTitle(String presetTitle) {
         this.presetTitle.set(presetTitle);
     }
 
-    private final ObjectProperty<Side> presetsLocation = new SimpleObjectProperty<>(this, "presetsLocation", Side.LEFT) {
+    private final ObjectProperty<Side> presetsLocation = new StyleableObjectProperty<>(Side.LEFT) {
         @Override
         public void set(Side side) {
             if (!Objects.equals(side, Side.LEFT) && !Objects.equals(side, Side.RIGHT)) {
@@ -235,12 +273,38 @@ public class DateRangeView extends Control {
             }
             super.set(side);
         }
+
+        @Override
+        public Object getBean() {
+            return DateRangeView.this;
+        }
+
+        @Override
+        public String getName() {
+            return "presetsLocation";
+        }
+
+        @Override
+        public CssMetaData<? extends Styleable, Side> getCssMetaData() {
+            return StyleableProperties.PRESETS_LOCATION;
+        }
     };
 
     public final Side getPresetsLocation() {
         return presetsLocation.get();
     }
 
+    /**
+     * Defines where the presets will be shown relative to the two calendar views.
+     * Supports left and right side values.
+     * <p>
+     * Can be set via CSS using the {@code -fx-presets-location} property.
+     * Valid values are: {@code LEFT}, {@code RIGHT}.
+     * The default value is {@code LEFT}.
+     * </p>
+     *
+     * @return the location of the presets
+     */
     public final ObjectProperty<Side> presetsLocationProperty() {
         return presetsLocation;
     }
@@ -249,12 +313,37 @@ public class DateRangeView extends Control {
         this.presetsLocation.set(presetsLocation);
     }
 
-    private final BooleanProperty showPresets = new SimpleBooleanProperty(this, "showQuickSelect", true);
+    private final BooleanProperty showPresets = new StyleableBooleanProperty(true) {
+        @Override
+        public Object getBean() {
+            return DateRangeView.this;
+        }
+
+        @Override
+        public String getName() {
+            return "showPresets";
+        }
+
+        @Override
+        public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+            return StyleableProperties.SHOW_PRESETS;
+        }
+    };
 
     public final boolean isShowPresets() {
         return showPresets.get();
     }
 
+    /**
+     * Controls whether the presets section will be shown by the control.
+     * <p>
+     * Can be set via CSS using the {@code -fx-show-presets} property.
+     * Valid values are: {@code true}, {@code false}.
+     * The default value is {@code true}.
+     * </p>
+     *
+     * @return controls visibility of the presets section
+     */
     public final BooleanProperty showPresetsProperty() {
         return showPresets;
     }
@@ -263,12 +352,17 @@ public class DateRangeView extends Control {
         this.showPresets.set(showPresets);
     }
 
-    private final ObjectProperty<Runnable> onClose = new SimpleObjectProperty<>(this, "onClose", () -> System.out.println("closing"));
+    private final ObjectProperty<Runnable> onClose = new SimpleObjectProperty<>(this, "onClose", () -> {});
 
     public final Runnable getOnClose() {
         return onClose.get();
     }
 
+    /**
+     * A runnable callback that will be invoked when the user closes the control.
+     *
+     * @return the closing callback
+     */
     public final ObjectProperty<Runnable> onCloseProperty() {
         return onClose;
     }
@@ -285,6 +379,11 @@ public class DateRangeView extends Control {
         return value.get();
     }
 
+    /**
+     * Stores the currently selected / defined date range.
+     *
+     * @return the current date range
+     */
     public final ObjectProperty<DateRange> valueProperty() {
         return value;
     }
@@ -293,7 +392,22 @@ public class DateRangeView extends Control {
         this.value.set(value);
     }
 
-    private final BooleanProperty showCancelAndApplyButton = new SimpleBooleanProperty(this, "showCancelAndApplyButton", true);
+    private final BooleanProperty showCancelAndApplyButton = new StyleableBooleanProperty(true) {
+        @Override
+        public Object getBean() {
+            return DateRangeView.this;
+        }
+
+        @Override
+        public String getName() {
+            return "showCancelAndApplyButton";
+        }
+
+        @Override
+        public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+            return StyleableProperties.SHOW_CANCEL_AND_APPLY_BUTTON;
+        }
+    };
 
     public final boolean isShowCancelAndApplyButton() {
         return showCancelAndApplyButton.get();
@@ -301,6 +415,11 @@ public class DateRangeView extends Control {
 
     /**
      * Shows or hides the cancel and the apply buttons.
+     * <p>
+     * Can be set via CSS using the {@code -fx-show-cancel-and-apply-button} property.
+     * Valid values are: {@code true}, {@code false}.
+     * The default value is {@code true}.
+     * </p>
      *
      * @return true if the buttons will be shown
      */
@@ -316,38 +435,48 @@ public class DateRangeView extends Control {
 
     private final ObservableList<DateRangePreset> presets = FXCollections.observableArrayList();
 
+    /**
+     * The list of currently available presets.
+     *
+     * @return the presets
+     */
     public final ObservableList<DateRangePreset> getPresets() {
         return presets;
     }
 
     private DateRangePreset createTodayRangePreset() {
-        return new DateRangePreset("Today", () -> new DateRange("Today", LocalDate.now()));
+        String today = ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "preset.today", "Today");
+        return new DateRangePreset(today, () -> new DateRange(today, LocalDate.now()));
     }
 
     private DateRangePreset createYesterdayPreset() {
-        return new DateRangePreset("Yesterday", () -> new DateRange("Yesterday", LocalDate.now().minusDays(1)));
+        String yesterday = ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "preset.yesterday", "Yesterday");
+        return new DateRangePreset(yesterday, () -> new DateRange(yesterday, LocalDate.now().minusDays(1)));
     }
 
     private DateRangePreset createThisWeekPreset() {
-        return new DateRangePreset("This Week", () -> {
+        String thisWeek = ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "preset.this-week", "This Week");
+        return new DateRangePreset(thisWeek, () -> {
             TemporalField fieldISO = WeekFields.of(Locale.getDefault()).dayOfWeek();
-            return new DateRange("This Week", LocalDate.now().with(fieldISO, 1), LocalDate.now().with(fieldISO, 1).plusDays(6));
+            return new DateRange(thisWeek, LocalDate.now().with(fieldISO, 1), LocalDate.now().with(fieldISO, 1).plusDays(6));
         });
     }
 
     private DateRangePreset createThisMonthPreset() {
-        return new DateRangePreset("This Month", () -> {
+        String thisMonth = ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "preset.this-month", "This Month");
+        return new DateRangePreset(thisMonth, () -> {
             LocalDate start = LocalDate.now().with(TemporalAdjusters.firstDayOfMonth());
             LocalDate end = start.with(TemporalAdjusters.lastDayOfMonth());
-            return new DateRange("This Month", start, end);
+            return new DateRange(thisMonth, start, end);
         });
     }
 
     private DateRangePreset createLastMonthPreset() {
-        return new DateRangePreset("Last Month", () -> {
+        String lastMonth = ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_VIEW, "preset.last-month", "Last Month");
+        return new DateRangePreset(lastMonth, () -> {
             LocalDate start = LocalDate.now().with(TemporalAdjusters.firstDayOfMonth()).minusMonths(1);
             LocalDate end = start.with(TemporalAdjusters.lastDayOfMonth());
-            return new DateRange("Last Month", start, end);
+            return new DateRange(lastMonth, start, end);
         });
     }
 
@@ -373,12 +502,53 @@ public class DateRangeView extends Control {
                     }
                 };
 
+        private static final CssMetaData<DateRangeView, Boolean> SHOW_PRESETS =
+                new CssMetaData<>("-fx-show-presets", BooleanConverter.getInstance(), true) {
+                    @Override
+                    public boolean isSettable(DateRangeView n) {
+                        return !n.showPresets.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Boolean> getStyleableProperty(DateRangeView n) {
+                        return (StyleableProperty<Boolean>) n.showPresetsProperty();
+                    }
+                };
+
+        private static final CssMetaData<DateRangeView, Boolean> SHOW_CANCEL_AND_APPLY_BUTTON =
+                new CssMetaData<>("-fx-show-cancel-and-apply-button", BooleanConverter.getInstance(), true) {
+                    @Override
+                    public boolean isSettable(DateRangeView n) {
+                        return !n.showCancelAndApplyButton.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Boolean> getStyleableProperty(DateRangeView n) {
+                        return (StyleableProperty<Boolean>) n.showCancelAndApplyButtonProperty();
+                    }
+                };
+
+        private static final CssMetaData<DateRangeView, Side> PRESETS_LOCATION =
+                new CssMetaData<>("-fx-presets-location", new EnumConverter<>(Side.class), Side.LEFT) {
+                    @Override
+                    public boolean isSettable(DateRangeView n) {
+                        return !n.presetsLocation.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Side> getStyleableProperty(DateRangeView n) {
+                        return (StyleableProperty<Side>) n.presetsLocationProperty();
+                    }
+                };
+
         private static final List<CssMetaData<? extends Styleable, ?>> STYLEABLES;
 
         static {
-            final List<CssMetaData<? extends Styleable, ?>> styleables =
-                    new ArrayList<CssMetaData<? extends Styleable, ?>>(Control.getClassCssMetaData());
+            final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(Control.getClassCssMetaData());
             styleables.add(ORIENTATION);
+            styleables.add(SHOW_PRESETS);
+            styleables.add(SHOW_CANCEL_AND_APPLY_BUTTON);
+            styleables.add(PRESETS_LOCATION);
             STYLEABLES = Collections.unmodifiableList(styleables);
         }
     }

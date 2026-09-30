@@ -7,12 +7,18 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Utility class providing miscellaneous UI helper methods for JavaFX applications.
+ *
+ * <p>Methods cover common tasks such as conditionally adding CSS style classes to
+ * {@link javafx.css.Styleable} nodes, copying text to the clipboard, handling
+ * double-click events, and computing insets.
+ */
 public class UIUtil {
 
     private UIUtil() {
@@ -41,7 +47,7 @@ public class UIUtil {
     public static void addClassesIfAbsent(Styleable node, String... styleClasses) {
         List<String> list = Arrays.stream(styleClasses)
                 .filter(styleClass -> !node.getStyleClass().contains(styleClass))
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
         node.getStyleClass().addAll(list);
     }
 
@@ -108,7 +114,7 @@ public class UIUtil {
         // Remove the specified styles except the style to be added
         node.getStyleClass().removeAll(stylesToRemove.stream()
                 .filter(style -> !style.equals(styleToAdd))
-                .toList());
+                .collect(java.util.stream.Collectors.toList()));
     }
 
     /**
@@ -130,6 +136,7 @@ public class UIUtil {
      * @param node      The Node to update.
      * @param enumValue The enum value determining the style to apply.
      *                  <p> Example     If Dir.UP is passed, add "up" style and removes {"down", "left", "right"} styles.
+     * @param <T> the enum type
      */
     public static <T extends Enum<T>> void updateStyleFromEnum(Styleable node, T enumValue) {
         updateStyles(node, EnumUtil.convertAllToStylesClassName(enumValue.getClass()), EnumUtil.convertToStyleClassName(enumValue));
@@ -141,6 +148,7 @@ public class UIUtil {
      * @param node      The Node to clear styles from.
      * @param enumClass The enum class whose associated styles will be removed.
      *                  <p> Example     If Dir.class is passed, removes all styles {"up","down","left", "right"}.
+     * @param <T> the enum type
      */
     public static <T extends Enum<T>> void clearStylesByEnum(Styleable node, Class<T> enumClass) {
         node.getStyleClass().removeAll(EnumUtil.convertAllToStylesClassName(enumClass));
@@ -148,6 +156,9 @@ public class UIUtil {
 
     /**
      * Returns the height of the top and bottom insets combined.
+     *
+     * @param insets the insets
+     * @return the combined top and bottom insets
      */
     public static double getInsetsHeight(Insets insets) {
         return insets == null ? 0 : insets.getTop() + insets.getBottom();
@@ -155,6 +166,9 @@ public class UIUtil {
 
     /**
      * Returns the width of the left and right insets combined.
+     *
+     * @param insets the insets
+     * @return the combined left and right insets
      */
     public static double getInsetsWidth(Insets insets) {
         return insets == null ? 0 : insets.getLeft() + insets.getRight();

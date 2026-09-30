@@ -3,14 +3,11 @@ package com.dlsc.gemsfx.demo;
 import com.dlsc.gemsfx.SearchField;
 import com.dlsc.gemsfx.util.HistoryManager;
 import com.dlsc.gemsfx.util.StringHistoryManager;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -29,14 +26,16 @@ import java.util.stream.Collectors;
  * <p>
  * About the HistoryManager, you can refer to: {@link HistoryManager} {@link SearchTextFieldApp}, {@link HistoryManagerApp}
  */
-public class SearchFieldApp extends Application {
+public class SearchFieldApp extends GemApplication {
 
     private StringHistoryManager historyManager;
 
     private final List<Country> countries = new ArrayList<>();
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         StringTokenizer st = new StringTokenizer(getCountries(), ",");
         while (st.hasMoreTokens()) {
             countries.add(new Country(st.nextToken()));
@@ -67,6 +66,7 @@ public class SearchFieldApp extends Application {
 
         CheckBox createNewItemBox = new CheckBox("Create new country 'on-the-fly' if it can't be found in the data set.");
         field.newItemProducerProperty().bind(Bindings.createObjectBinding(() -> createNewItemBox.isSelected() ? name -> new Country(name) : null, createNewItemBox.selectedProperty()));
+        createNewItemBox.setSelected(true);
 
         CheckBox showPromptText = new CheckBox("Show prompt text");
         showPromptText.setSelected(true);
@@ -121,27 +121,39 @@ public class SearchFieldApp extends Application {
         addHistoryOnFocusLossBox.setSelected(true);
         field.addingItemToHistoryOnFocusLostProperty().bind(addHistoryOnFocusLossBox.selectedProperty());
 
-        VBox historyControls = new VBox(10, new Separator(), addHistoryOnActionBox, addHistoryOnFocusLossBox);
+        VBox historyControls = new VBox(10, addHistoryOnActionBox, addHistoryOnFocusLossBox);
         historyControls.managedProperty().bind(enableHistoryBox.selectedProperty());
         historyControls.visibleProperty().bind(enableHistoryBox.selectedProperty());
 
         field.leftProperty().bind(Bindings.createObjectBinding(() -> showLeftRightNodes.isSelected() ? regionLeft : null, showLeftRightNodes.selectedProperty()));
         field.rightProperty().bind(Bindings.createObjectBinding(() -> showLeftRightNodes.isSelected() ? regionRight : null, showLeftRightNodes.selectedProperty()));
 
-        VBox vbox = new VBox(20, createNewItemBox, showPromptText, usePlaceholder, hideWithSingleChoiceBox, hideWithNoChoiceBox, showSearchIconBox, showLeftRightNodes,
-                autoCommitOnFocusLostBox, hBox, hBox2, enableHistoryBox, historyControls, field);
+        VBox vbox = new VBox(
+                10,
+                new Label("Select a country (e.g. start typing \"United\")"),
+                field,
+                hBox,
+                hBox2,
+                createNewItemBox,
+                showPromptText,
+                usePlaceholder,
+                hideWithSingleChoiceBox,
+                hideWithNoChoiceBox,
+                showSearchIconBox,
+                showLeftRightNodes,
+                autoCommitOnFocusLostBox,
+                enableHistoryBox,
+                historyControls);
+
         vbox.setPadding(new Insets(20));
 
         Scene scene = new Scene(vbox);
-        scene.focusOwnerProperty().addListener(it -> System.out.println("owner: " + scene.getFocusOwner()));
 
         primaryStage.setTitle("Search Field");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
-        primaryStage.centerOnScreen();
-        primaryStage.show();
 
-        CSSFX.start();
+        primaryStage.show();
     }
 
     public static void main(String[] args) {

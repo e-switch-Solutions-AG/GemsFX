@@ -1,5 +1,6 @@
 package com.dlsc.gemsfx.skins;
 
+import com.dlsc.gemsfx.CustomTextField;
 import com.dlsc.gemsfx.EmailField;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -11,7 +12,6 @@ import javafx.scene.Node;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PopupControl;
 import javafx.scene.control.Skin;
-import javafx.scene.control.SkinBase;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.skin.TextFieldSkin;
 import javafx.scene.input.KeyCode;
@@ -20,16 +20,27 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import org.apache.commons.lang3.StringUtils;
-import org.controlsfx.control.textfield.CustomTextField;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.util.Objects;
 
-public class EmailFieldSkin extends SkinBase<EmailField> {
+/**
+ * Skin for {@link EmailField}.
+ * <p>
+ * The skin places the field's editor in the control, adds optional mail and validation icons, installs the validation
+ * tooltip, and shows a popup list with matching domain suggestions while the user types after the at sign.
+ */
+public class EmailFieldSkin extends GemsSkinBase<EmailField> {
 
     private final CustomTextField customTextField;
     private final DomainPopup domainPopup;
+    private javafx.beans.value.ChangeListener<String> invalidTextListener;
 
+    /**
+     * Creates a skin for the given email field.
+     *
+     * @param field the email field rendered by this skin
+     */
     public EmailFieldSkin(EmailField field) {
         super(field);
 
@@ -55,17 +66,18 @@ public class EmailFieldSkin extends SkinBase<EmailField> {
         Tooltip invalidToolTip = new Tooltip();
         invalidToolTip.textProperty().bind(field.invalidTextProperty());
         updateTooltipVisibility(field.getInvalidText(), rightIconWrapper, invalidToolTip);
-        field.invalidTextProperty().addListener((ob, ov, newValue) -> updateTooltipVisibility(newValue, rightIconWrapper, invalidToolTip));
+        invalidTextListener = (ob, ov, newValue) -> updateTooltipVisibility(newValue, rightIconWrapper, invalidToolTip);
+        register(field.invalidTextProperty(), invalidTextListener);
 
-        customTextField.textProperty().bindBidirectional(field.emailAddressProperty());
         customTextField.promptTextProperty().bind(field.promptTextProperty());
         customTextField.setLeft(leftIconWrapper);
         customTextField.setRight(rightIconWrapper);
 
         getChildren().setAll(customTextField);
 
-        customTextField.textProperty().subscribe(this::handleSuggestionPopupVisibility);
-        customTextField.focusedProperty().subscribe(this::handleSuggestionPopupVisibility);
+        register(customTextField.textProperty(), (obs, oldText, newText) -> handleSuggestionPopupVisibility());
+        register(customTextField.focusedProperty(), (obs, wasFocused, isFocused) -> handleSuggestionPopupVisibility());
+        handleSuggestionPopupVisibility();
     }
 
     private void updateTooltipVisibility(String invalidText, StackPane node, Tooltip invalidToolTip) {
@@ -112,7 +124,7 @@ public class EmailFieldSkin extends SkinBase<EmailField> {
         }
 
         boolean shouldShowPopup = !exactMatch && startsWithMatch
-                && getSkinnable().getAutoDomainCompletionEnabled()
+                && getSkinnable().isAutoDomainCompletionEnabled()
                 && customTextField.isFocused();
 
         if (shouldShowPopup) {
@@ -142,7 +154,7 @@ public class EmailFieldSkin extends SkinBase<EmailField> {
     private void handleSuggestionSelection(ListView<String> listView) {
         String selectedDomain = listView.getSelectionModel().getSelectedItem();
         String text = customTextField.getText();
-        int atIndex = text.indexOf('@');
+        int atIndex = text.lastIndexOf('@');
         if (atIndex != -1 && selectedDomain != null) {
             customTextField.replaceText(atIndex + 1, text.length(), selectedDomain);
             customTextField.positionCaret(customTextField.getText().length());
@@ -216,10 +228,12 @@ public class EmailFieldSkin extends SkinBase<EmailField> {
         FilteredList<String> filteredList = new FilteredList<>(getSkinnable().getDomainList());
         filteredList.predicateProperty().bind(Bindings.createObjectBinding(() -> item -> {
             String text = customTextField.getText();
-            int atIndex = text.lastIndexOf('@');
-            if (atIndex != -1) {
-                String enteredText = text.substring(atIndex + 1);
-                return StringUtils.startsWithIgnoreCase(item, enteredText);
+            if (text != null) {
+                int atIndex = text.lastIndexOf('@');
+                if (atIndex != -1) {
+                    String enteredText = text.substring(atIndex + 1);
+                    return StringUtils.startsWithIgnoreCase(item, enteredText);
+                }
             }
             return true;
         }, customTextField.textProperty()));

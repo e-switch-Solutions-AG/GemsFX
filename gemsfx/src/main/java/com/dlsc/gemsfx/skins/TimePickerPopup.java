@@ -4,7 +4,6 @@ import com.dlsc.gemsfx.TimePicker;
 import com.dlsc.gemsfx.TimePicker.Format;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
-import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -16,6 +15,13 @@ import javafx.scene.layout.Region;
 import java.time.LocalTime;
 import java.util.Objects;
 
+/**
+ * Popup content for {@link TimePicker}.
+ * <p>
+ * The popup displays list views for hours, minutes, seconds, and milliseconds,
+ * updates the picker value from list selections, and respects the configured
+ * time format and valid time range.
+ */
 public class TimePickerPopup extends HBox {
 
     private final ListView<Integer> hourListView = new ListView<>();
@@ -24,6 +30,11 @@ public class TimePickerPopup extends HBox {
     private final ListView<Integer> millisecondListView = new ListView<>();
     private final TimePicker timePicker;
 
+    /**
+     * Creates new popup content for the given time picker.
+     *
+     * @param timePicker the time picker controlled by this popup
+     */
     public TimePickerPopup(TimePicker timePicker) {
         this.timePicker = timePicker;
         
@@ -205,8 +216,17 @@ public class TimePickerPopup extends HBox {
         return false;
     }
 
+    /**
+     * Base list cell for time unit values.
+     * <p>
+     * The cell uses a label graphic so all time lists can share the same basic
+     * visual structure and style classes.
+     */
     public abstract static class TimeCell extends ListCell<Integer> {
 
+        /**
+         * Creates a new time value cell.
+         */
         public TimeCell() {
             getStyleClass().add("time-cell");
 

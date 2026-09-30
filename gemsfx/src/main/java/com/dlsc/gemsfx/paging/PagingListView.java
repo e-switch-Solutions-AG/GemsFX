@@ -1,0 +1,193 @@
+package com.dlsc.gemsfx.paging;
+
+import com.dlsc.gemsfx.CircleProgressIndicator;
+import com.dlsc.gemsfx.skins.InnerListViewSkin;
+import com.dlsc.gemsfx.skins.PagingListViewSkin;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.scene.AccessibleRole;
+import javafx.scene.control.Cell;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Skin;
+import javafx.scene.layout.Region;
+import javafx.util.Callback;
+
+import java.util.Objects;
+
+/**
+ * PagingListView is a custom control that extends the functionality of a standard ListView
+ * to include paging capabilities. It is designed to handle large datasets efficiently by
+ * splitting the data into manageable pages and allowing navigation between them.
+ *
+ * @param <T> the type of items to be displayed in the list view
+ */
+public class PagingListView<T> extends ItemPagingControlBase<T> {
+
+    private final ObservableList<T> items = FXCollections.observableArrayList();
+
+    private final ObservableList<T> unmodifiableItems = FXCollections.unmodifiableObservableList(items);
+
+    private final ListView<T> listView = new ListView<>(items) {
+
+        /**
+         * Creates the default skin for the wrapped list view.
+         *
+         * @return the default skin
+         */
+        @Override
+        protected Skin<?> createDefaultSkin() {
+            return new InnerListViewSkin<>(this, PagingListView.this);
+        }
+    };
+
+    private boolean processingService;
+
+    /**
+     * Constructs a new PagingListView instance. The PagingListView is a custom control
+     * that provides paging functionality for a list view, allowing for efficient display
+     * and navigation of large datasets across multiple pages.
+     * This constructor initializes the PagingListView by performing the following steps:
+     * - Adds a custom style class ("paging-list-view") to the control.
+     * - Configures the internal ListView, including setting a custom style class ("inner-list-view"),
+     *   enabling "multiple selection" mode, and establishing bindings for the cell factory and items
+     *   displayed on the current page.
+     * - Binds the selection model of the PagingListView to the internal ListView for consistent
+     *   selection behavior.
+     * - Sets a default cell factory to customize the rendering of items in the list.
+     * - Listens to changes in the cell factory property and triggers a refresh when modifications occur.
+     */
+    public PagingListView() {
+        getStyleClass().add("paging-list-view");
+        AccessibilityUtil.setRole(this, AccessibleRole.LIST_VIEW);
+
+        focusedProperty().addListener((obs, wasFocused, focused) -> {
+            if (focused) {
+                listView.requestFocus();
+            }
+        });
+
+        listView.getStyleClass().addAll("inner-list-view");
+        listView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        listView.cellFactoryProperty().bind(cellFactoryProperty());
+        listView.setFixedCellSize(Region.USE_COMPUTED_SIZE);
+        listView.setItems(getItemsOnCurrentPage());
+
+        selectionModelProperty().bindBidirectional(listView.selectionModelProperty());
+
+        setCellFactory(lv -> new ListCell<>() {
+            /**
+             * Updates the cell to represent the given item.
+             *
+             * @param item the item to show in the cell
+             * @param empty whether the cell should be shown as empty
+             */
+            @Override
+            protected void updateItem(T item, boolean empty) {
+                super.updateItem(item, empty);
+                if (item != null) {
+                    setText(item.toString());
+                } else {
+                    setText("");
+                }
+            }
+        });
+
+        InvalidationListener refreshListener = (Observable it) -> refresh();
+        cellFactoryProperty().addListener(refreshListener);
+    }
+
+    /**
+     * Creates the default skin for this control.
+     *
+     * @return the default skin
+     */
+    @Override
+    protected Skin<?> createDefaultSkin() {
+        return new PagingListViewSkin<>(this);
+    }
+
+    /**
+     * Returns the user agent stylesheet used by this control.
+     *
+     * @return the user agent stylesheet
+     */
+    @Override
+    public String getUserAgentStylesheet() {
+        return Objects.requireNonNull(PagingListView.class.getResource("paging-list-view.css")).toExternalForm();
+    }
+
+    private final ObjectProperty<ProgressIndicator> progressIndicator = new SimpleObjectProperty<>(this, "progressIndicator", new CircleProgressIndicator());
+
+    public final ProgressIndicator getProgressIndicator() {
+        return progressIndicator.get();
+    }
+
+    /**
+     * The progress indicator that will be used to display percentage progress or the indeterminate state of the
+     * loading progress.
+     *
+     * @return the progress indicator
+     */
+    public final ObjectProperty<ProgressIndicator> progressIndicatorProperty() {
+        return progressIndicator;
+    }
+
+    public final void setProgressIndicator(ProgressIndicator progressIndicator) {
+        this.progressIndicator.set(progressIndicator);
+    }
+
+    /**
+     * Returns the wrapped list view.
+     *
+     * @return the list view
+     */
+    public final ListView<T> getListView() {
+        return listView;
+    }
+
+    // --- Cell Factory
+    private ObjectProperty<Callback<ListView<T>, ListCell<T>>> cellFactory;
+
+    public final void setCellFactory(Callback<ListView<T>, ListCell<T>> value) {
+        cellFactoryProperty().set(value);
+    }
+
+    public final Callback<ListView<T>, ListCell<T>> getCellFactory() {
+        return cellFactory == null ? null : cellFactory.get();
+    }
+
+    /**
+     * <p>Setting a custom cell factory has the effect of deferring all cell
+     * creation, allowing for total customization of the cell. Internally, the
+     * ListView is responsible for reusing ListCells - all that is necessary
+     * is for the custom cell factory to return from this function a ListCell
+     * which might be usable for representing any item in the ListView.
+     *
+     * <p>Refer to the {@link Cell} class documentation for more detail.
+     *
+     * @return the cell factory property
+     */
+    public final ObjectProperty<Callback<ListView<T>, ListCell<T>>> cellFactoryProperty() {
+        if (cellFactory == null) {
+            cellFactory = new SimpleObjectProperty<>(this, "cellFactory");
+        }
+        return cellFactory;
+    }
+
+    /**
+     * Triggers a rebuild of the view without reloading data.
+     */
+    @Override
+    public final void refresh() {
+        getProperties().remove("refresh-items");
+        getProperties().put("refresh-items", true);
+    }
+}

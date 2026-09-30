@@ -2,7 +2,7 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.TimeRangePicker;
 import com.dlsc.gemsfx.demo.fake.SimpleControlPane;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
@@ -11,12 +11,14 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
-public class TimeRangePickerApp extends Application {
+public class TimeRangePickerApp extends GemApplication {
 
     private TimeRangePicker timeRangePicker;
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         timeRangePicker = new TimeRangePicker();
         timeRangePicker.setPrefWidth(200);
         timeRangePicker.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -24,19 +26,26 @@ public class TimeRangePickerApp extends Application {
         timeRangePicker.getSelectionModel().selectIndices(1, 2, 3);
 
         StackPane wrapper = new StackPane(timeRangePicker);
-        wrapper.setStyle("-fx-background-color: white; -fx-padding: 10;");
+
+        if (Boolean.getBoolean("atlantafx")) {
+            wrapper.setStyle("-fx-background-color: -color-bg-default; -fx-padding: 10;");
+        } else {
+            wrapper.setStyle("-fx-background-color: white; -fx-padding: 10;");
+        }
 
         SplitPane splitPane = new SplitPane(wrapper, createControlPane());
         splitPane.setDividerPositions(0.7);
 
         primaryStage.setScene(new Scene(splitPane, 800, 600));
         primaryStage.setTitle("Hello TimeRangePicker");
+
         primaryStage.show();
     }
 
     private Node createControlPane() {
         ComboBox<SelectionMode> controlPane = new ComboBox<>();
         controlPane.getItems().addAll(SelectionMode.values());
+        controlPane.setConverter(new EnumStringConverter<>());
         controlPane.valueProperty().bindBidirectional(timeRangePicker.getSelectionModel().selectionModeProperty());
 
         return new SimpleControlPane(
@@ -44,7 +53,6 @@ public class TimeRangePickerApp extends Application {
                 new SimpleControlPane.ControlItem("Selection Mode", controlPane)
         );
     }
-
 
     public static void main(String[] args) {
         launch(args);

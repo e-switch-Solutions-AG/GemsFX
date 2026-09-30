@@ -4,24 +4,38 @@ import com.dlsc.gemsfx.BeforeAfterView;
 import javafx.beans.InvalidationListener;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
-import javafx.scene.control.SkinBase;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign.MaterialDesign;
 
-import java.util.Objects;
 
-public class BeforeAfterViewSkin extends SkinBase<BeforeAfterView> {
+/**
+ * Skin for the {@link BeforeAfterView} control.
+ * <p>
+ * The skin layers the before and after nodes, clips them at the divider
+ * position, and displays a draggable divider with a handle.
+ */
+public class BeforeAfterViewSkin extends GemsSkinBase<BeforeAfterView> {
 
-    private StackPane content = new StackPane();
-    private StackPane divider = new StackPane();
-    private StackPane handle = new StackPane();
+    private final StackPane content = new StackPane();
+    private final StackPane divider = new StackPane();
+    private final StackPane handle = new StackPane();
+
     private double startX;
     private double startY;
 
+    private final InvalidationListener updateListener = it -> updateView();
+    private final InvalidationListener dividerPositionListener = it -> getSkinnable().requestLayout();
+
+    /**
+     * Creates a skin for the given before-after view.
+     *
+     * @param view the before-after view rendered by this skin
+     */
     public BeforeAfterViewSkin(BeforeAfterView view) {
         super(view);
+
 
         content.getStyleClass().add("content");
 
@@ -58,12 +72,11 @@ public class BeforeAfterViewSkin extends SkinBase<BeforeAfterView> {
         clip.heightProperty().bind(view.heightProperty());
         content.setClip(clip);
 
-        InvalidationListener updateListener = it -> updateView();
-        view.beforeProperty().addListener(updateListener);
-        view.afterProperty().addListener(updateListener);
-        view.orientationProperty().addListener(updateListener);
+        register(view.beforeProperty(), updateListener);
+        register(view.afterProperty(), updateListener);
+        register(view.orientationProperty(), updateListener);
 
-        view.dividerPositionProperty().addListener(it -> view.requestLayout());
+        register(view.dividerPositionProperty(), dividerPositionListener);
 
         getChildren().addAll(content, divider, handle);
 

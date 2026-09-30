@@ -1,8 +1,11 @@
 package com.dlsc.gemsfx;
 
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import com.dlsc.gemsfx.util.SimpleStringConverter;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Button;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.layout.VBox;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -15,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A custom control that allows users to select days of the week.
@@ -30,41 +34,18 @@ public class DayOfWeekPicker extends SelectionBox<DayOfWeek> {
 
     private static final String DEFAULT_STYLE_CLASS = "day-of-week-picker";
 
+    /**
+     * Constructs a new day-of-week picker.
+     */
     public DayOfWeekPicker() {
         getStyleClass().add(DEFAULT_STYLE_CLASS);
+        AccessibilityUtil.setRole(this, AccessibleRole.COMBO_BOX);
 
         // Set Items
         getItems().setAll(getLocalizedDayOrder());
 
-        // Set Extra Buttons Provider
-        setExtraButtonsProvider(model -> switch (model.getSelectionMode()) {
-            case SINGLE -> {
-                // Button tomorrowButton = createExtraButton("Tomorrow", () -> model.clearAndSelect(getItems().indexOf(LocalDate.now().getDayOfWeek().plus(1))));
-                // Button yesterdayButton = createExtraButton("Yesterday", () -> model.clearAndSelect(getItems().indexOf(LocalDate.now().getDayOfWeek().minus(1))));
-                Button todayButton = createExtraButton("Today", () -> model.clearAndSelect(getItems().indexOf(LocalDate.now().getDayOfWeek())));
-                Button clearButton = createExtraButton("Clear", model::clearSelection);
-                yield List.of(clearButton, todayButton);
-            }
-            case MULTIPLE -> {
-                // When clicking on the button, it will clear the current selection and select all weekdays
-                Button weekdaysButton = createExtraButton("Weekdays", () -> {
-                    getSelectionModel().clearSelection();
-                    for (DayOfWeek day : getWeekdays()) {
-                        getSelectionModel().select(day);
-                    }
-                });
-                // When clicking on the button, it will clear the current selection and select all weekend days
-                Button weekendsButton = createExtraButton("Weekends", () -> {
-                    getSelectionModel().clearSelection();
-                    for (DayOfWeek day : getWeekendDays()) {
-                        getSelectionModel().select(day);
-                    }
-                });
-                Button clearButton = createExtraButton("Clear", model::clearSelection);
-                Button anyDayButton = createExtraButton("Any Day", model::selectAll);
-                yield List.of(clearButton, anyDayButton, weekdaysButton, weekendsButton);
-            }
-        });
+        // Add quick selection buttons to the top of the popup
+        setTop(createExtraButtonsBox());
 
         // set item converter
         setItemConverter(new SimpleStringConverter<>(dayOfWeek -> dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())));
@@ -76,11 +57,11 @@ public class DayOfWeekPicker extends SelectionBox<DayOfWeek> {
             } else if (selectedDays.size() == 1) {
                 return selectedDays.get(0).getDisplayName(TextStyle.FULL, Locale.getDefault());
             } else if (isSelectedAll()) {
-                return "All Days";
+                return ResourceBundleManager.getString(ResourceBundleManager.BundleType.DAY_OF_WEEK_PICKER, "summary.all-days", "All Days");
             } else if (isOnlyWeekdaysSelected()) {
-                return "Weekdays";
+                return ResourceBundleManager.getString(ResourceBundleManager.BundleType.DAY_OF_WEEK_PICKER, "summary.weekdays", "Weekdays");
             } else if (isOnlyWeekendsSelected()) {
-                return "Weekends";
+                return ResourceBundleManager.getString(ResourceBundleManager.BundleType.DAY_OF_WEEK_PICKER, "summary.weekends", "Weekends");
             } else {
                 // Group selected days into consecutive ranges
                 List<List<DayOfWeek>> ranges = mergeConsecutiveItem(selectedDays);
@@ -100,6 +81,48 @@ public class DayOfWeekPicker extends SelectionBox<DayOfWeek> {
                 return String.join(", ", rangeStrings);
             }
         }));
+    }
+
+    private VBox createExtraButtonsBox() {
+        Button clearButton = createExtraButton(ResourceBundleManager.getString(ResourceBundleManager.BundleType.DAY_OF_WEEK_PICKER, "action.clear", "Clear"), () -> getSelectionModel().clearSelection());
+        clearButton.getStyleClass().add("clear-button");
+
+        Button todayButton = createExtraButton(ResourceBundleManager.getString(ResourceBundleManager.BundleType.DAY_OF_WEEK_PICKER, "action.today", "Today"), () -> getSelectionModel().clearAndSelect(getItems().indexOf(LocalDate.now().getDayOfWeek())));
+        todayButton.getStyleClass().add("today-button");
+        todayButton.managedProperty().bind(todayButton.visibleProperty());
+        todayButton.visibleProperty().bind(currentSelectionModeProperty().isEqualTo(SelectionMode.SINGLE));
+
+        Button allButton = createExtraButton(ResourceBundleManager.getString(ResourceBundleManager.BundleType.DAY_OF_WEEK_PICKER, "action.all-days", "All Days"), () -> getSelectionModel().selectAll());
+        allButton.getStyleClass().add("select-all-button");
+        allButton.managedProperty().bind(allButton.visibleProperty());
+        allButton.visibleProperty().bind(currentSelectionModeProperty().isEqualTo(SelectionMode.MULTIPLE));
+
+        Button weekdaysButton = createExtraButton(ResourceBundleManager.getString(ResourceBundleManager.BundleType.DAY_OF_WEEK_PICKER, "action.weekdays", "Weekdays"), () -> {
+            getSelectionModel().clearSelection();
+            for (DayOfWeek day : getWeekdays()) {
+                getSelectionModel().select(day);
+            }
+        });
+        weekdaysButton.getStyleClass().add("weekdays-button");
+        weekdaysButton.managedProperty().bind(weekdaysButton.visibleProperty());
+        weekdaysButton.visibleProperty().bind(currentSelectionModeProperty().isEqualTo(SelectionMode.MULTIPLE));
+
+        Button weekendsButton = createExtraButton(ResourceBundleManager.getString(ResourceBundleManager.BundleType.DAY_OF_WEEK_PICKER, "action.weekends", "Weekends"), () -> {
+            getSelectionModel().clearSelection();
+            for (DayOfWeek day : getWeekendDays()) {
+                getSelectionModel().select(day);
+            }
+        });
+        weekendsButton.getStyleClass().add("weekends-button");
+        weekendsButton.managedProperty().bind(weekendsButton.visibleProperty());
+        weekendsButton.visibleProperty().bind(currentSelectionModeProperty().isEqualTo(SelectionMode.MULTIPLE));
+
+        VBox extraButtonsBox = new VBox(clearButton, todayButton, allButton, weekdaysButton, weekendsButton);
+        extraButtonsBox.getStyleClass().addAll("extra-buttons-box");
+        extraButtonsBox.managedProperty().bind(extraButtonsBox.visibleProperty());
+        extraButtonsBox.visibleProperty().bind(itemsProperty().emptyProperty().not());
+
+        return extraButtonsBox;
     }
 
     private List<List<DayOfWeek>> mergeConsecutiveItem(List<DayOfWeek> selectedDays) {
@@ -138,7 +161,9 @@ public class DayOfWeekPicker extends SelectionBox<DayOfWeek> {
     }
 
     /**
-     * Get the localized order of DayOfWeek.
+     * Returns the localized order of the days of the week.
+     *
+     * @return the localized day order
      */
     public List<DayOfWeek> getLocalizedDayOrder() {
         WeekFields weekFields = WeekFields.of(Locale.getDefault());

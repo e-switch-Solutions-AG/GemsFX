@@ -5,7 +5,6 @@ import com.dlsc.gemsfx.skins.AdvancedTableViewSkin;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Skin;
-import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.skin.NestedTableColumnHeader;
 import javafx.scene.control.skin.TableColumnHeader;
@@ -15,22 +14,35 @@ import javafx.scene.control.skin.TableColumnHeader;
  * ability to optimize the column width based on their content.
  *
  * @see #autoResizeAllColumns
- * @param <T>
+ * @param <T> the type of items shown by the table view
  */
 public class AdvancedTableView<T> extends TableView<T> {
 
     private boolean autoResizeAllColumns;
     private int autoResizeRows;
 
+    /**
+     * Constructs a new advanced table view.
+     */
     public AdvancedTableView() {
         init();
     }
 
+    /**
+     * Constructs a new advanced table view with the given items.
+     *
+     * @param items the items shown by the table view
+     */
     public AdvancedTableView(ObservableList<T> items) {
         super(items);
         init();
     }
 
+    /**
+     * Creates the default skin for this control.
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new AdvancedTableViewSkin<>(this);
@@ -77,9 +89,11 @@ public class AdvancedTableView<T> extends TableView<T> {
     }
 
     private void resize(TableColumnHeader header, int rows) {
-        if (header instanceof NestedTableColumnHeader nestedTableColumnHeader) {
+        if (header instanceof NestedTableColumnHeader) {
+            NestedTableColumnHeader nestedTableColumnHeader = (NestedTableColumnHeader) header;
             nestedTableColumnHeader.getColumnHeaders().forEach(col -> resize(col, rows));
-        } else if (header instanceof AdvancedTableColumnHeader advancedTableColumnHeader) {
+        } else if (header instanceof AdvancedTableColumnHeader) {
+            AdvancedTableColumnHeader advancedTableColumnHeader = (AdvancedTableColumnHeader) header;
             advancedTableColumnHeader.resizeColumnToFitContent(rows);
         }
     }

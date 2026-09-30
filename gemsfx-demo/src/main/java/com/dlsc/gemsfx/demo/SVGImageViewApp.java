@@ -1,7 +1,6 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.SVGImageView;
-import javafx.application.Application;
 import javafx.beans.property.DoubleProperty;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -18,7 +17,7 @@ import javafx.stage.Stage;
 import java.io.File;
 import java.util.Objects;
 
-public class SVGImageViewApp extends Application {
+public class SVGImageViewApp extends GemApplication {
 
     /**
      * <a href="https://www.svgrepo.com/svg/288210/phone-call-telephone">telephone svg</a>
@@ -27,7 +26,9 @@ public class SVGImageViewApp extends Application {
     private static final String SVG_URL = "https://www.svgrepo.com/show/288210/phone-call-telephone.svg";
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         SVGImageView imageView = new SVGImageView();
         String svgUrl = Objects.requireNonNull(SVGImageViewApp.class.getResource("microphone.svg")).toExternalForm();
         imageView.setSvgUrl(svgUrl);
@@ -40,12 +41,20 @@ public class SVGImageViewApp extends Application {
         ScrollPane scrollPane = new ScrollPane(imageWrapper);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
+
         SplitPane root = new SplitPane(scrollPane, controlBox);
         root.setDividerPositions(0.7);
+
         Scene scene = new Scene(root, 600, 380);
-        scene.getStylesheets().add(Objects.requireNonNull(SVGImageViewApp.class.getResource("svg-image-view-app.css")).toExternalForm());
+        if (Boolean.getBoolean("atlantafx")) {
+            scene.getStylesheets().add(Objects.requireNonNull(SVGImageViewApp.class.getResource("svg-image-view-app-atlantafx.css")).toExternalForm());
+        } else {
+            scene.getStylesheets().add(Objects.requireNonNull(SVGImageViewApp.class.getResource("svg-image-view-app.css")).toExternalForm());
+        }
+
         primaryStage.setScene(scene);
         primaryStage.setTitle("SVGImageView Demo");
+
         primaryStage.show();
     }
 

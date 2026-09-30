@@ -20,6 +20,21 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * A single cell in a {@link GridTableView} row.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-mouse-transparent}</td><td>{@code boolean}</td><td>Whether the cell ignores mouse events.</td></tr>
+ *   </tbody>
+ * </table>
+ *
+ * @param <S> the type of the row item
+ * @param <T> the type of the cell item
+ */
 public class GridTableCell<S, T> extends Cell<T> {
 
     private static final boolean DEFAULT_TRANSPARENT = false;
@@ -29,6 +44,9 @@ public class GridTableCell<S, T> extends Cell<T> {
 
     private static final String DEFAULT_STYLE_CLASS = "grid-table-cell";
 
+    /**
+     * Constructs a new grid table cell.
+     */
     public GridTableCell() {
         getStyleClass().setAll(DEFAULT_STYLE_CLASS);
 
@@ -43,11 +61,23 @@ public class GridTableCell<S, T> extends Cell<T> {
         });
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new GridTableCellSkin<>(this);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @param item the item value
+     *
+     * @param empty the empty value
+     */
     @Override
     protected void updateItem(T item, boolean empty) {
         super.updateItem(item, empty);
@@ -71,20 +101,30 @@ public class GridTableCell<S, T> extends Cell<T> {
 
     private final ObjectProperty<S> rowItem = new SimpleObjectProperty<>(this, "rowItem");
 
-    public S getRowItem() {
+    public final S getRowItem() {
         return rowItem.get();
     }
 
-    public ObjectProperty<S> rowItemProperty() {
+    /**
+     * Stores the row item shown by this cell.
+     *
+     * @return the row item property
+     */
+    public final ObjectProperty<S> rowItemProperty() {
         return rowItem;
     }
 
-    public void setRowItem(S rowItem) {
+    public final void setRowItem(S rowItem) {
         this.rowItem.set(rowItem);
     }
 
     private final IntegerProperty index = new SimpleIntegerProperty(this, "index");
 
+    /**
+     * Stores the row index shown by this cell.
+     *
+     * @return the index property
+     */
     public final IntegerProperty indexProperty() {
         return index;
     }
@@ -103,6 +143,11 @@ public class GridTableCell<S, T> extends Cell<T> {
         return column.get();
     }
 
+    /**
+     * Stores the column that created this cell.
+     *
+     * @return the column property
+     */
     public final ObjectProperty<GridTableColumn<S, T>> columnProperty() {
         return column;
     }
@@ -119,11 +164,21 @@ public class GridTableCell<S, T> extends Cell<T> {
      * Since mouseTransparent cannot be directly set through CSS,
      * transparentProperty allows for CSS-driven adjustments,
      * facilitating easier styling without altering existing code.
+     * <p>
+     * Can be set via CSS using the {@code -fx-mouse-transparent} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code false}.
+     * </p>
+     *
+     * @return the transparent property
      */
     public final StyleableBooleanProperty transparentProperty() {
         if (transparent == null) {
             transparent = new StyleableBooleanProperty(DEFAULT_TRANSPARENT) {
 
+                /**
+                 * {@inheritDoc}
+                 */
                 @Override
                 protected void invalidated() {
                     if (!mouseTransparentProperty().isBound()) {
@@ -131,16 +186,31 @@ public class GridTableCell<S, T> extends Cell<T> {
                     }
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the owning bean
+                 */
                 @Override
                 public Object getBean() {
                     return GridTableCell.this;
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the property name
+                 */
                 @Override
                 public String getName() {
                     return "transparent";
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the CSS metadata for this property
+                 */
                 @Override
                 public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
                     return StyleableProperties.TRANSPARENT;
@@ -150,7 +220,7 @@ public class GridTableCell<S, T> extends Cell<T> {
         return this.transparent;
     }
 
-    public final boolean getTransparent() {
+    public final boolean isTransparent() {
         return transparent == null || transparent.get();
     }
 
@@ -163,11 +233,25 @@ public class GridTableCell<S, T> extends Cell<T> {
         private static final CssMetaData<GridTableCell, Boolean> TRANSPARENT = new CssMetaData<>(
                 "-fx-mouse-transparent", BooleanConverter.getInstance(), DEFAULT_TRANSPARENT) {
 
+            /**
+             * {@inheritDoc}
+             *
+             * @return the styleable property
+             *
+             * @param control the control to inspect
+             */
             @Override
             public StyleableProperty<Boolean> getStyleableProperty(GridTableCell control) {
                 return control.transparentProperty();
             }
 
+            /**
+             * {@inheritDoc}
+             *
+             * @return true if the property can be styled
+             *
+             * @param control the control to inspect
+             */
             @Override
             public boolean isSettable(GridTableCell control) {
                 return control.transparent == null || !control.transparent.isBound();
@@ -183,11 +267,21 @@ public class GridTableCell<S, T> extends Cell<T> {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the supported CSS metadata
+     */
     @Override
     public List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the CSS metadata supported by this control
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return StyleableProperties.STYLEABLES;
     }

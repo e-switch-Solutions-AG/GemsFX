@@ -1,7 +1,8 @@
 package com.dlsc.gemsfx.demo;
 
+import com.dlsc.gemsfx.ArcProgressIndicator;
 import com.dlsc.gemsfx.SemiCircleProgressIndicator;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.application.Platform;
 import javafx.concurrent.Service;
 import javafx.geometry.Insets;
@@ -16,39 +17,25 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
-import org.kordamp.ikonli.javafx.FontIcon;
 
-import java.util.Objects;
 
-public class SemiCircleProgressIndicatorApp extends Application {
+public class SemiCircleProgressIndicatorApp extends GemApplication {
 
     private StringConverter<Double> customConverter;
 
     @Override
     public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         SemiCircleProgressIndicator progressIndicator = new SemiCircleProgressIndicator();
         delayAutoUpdateProgress(progressIndicator);
 
         // styles
-        String[] styles = new String[]{"bold-style", "thin-style", "sector-style", "default-style"};
-        ComboBox<String> styleComboBox = new ComboBox<>();
-        styleComboBox.getItems().addAll(styles);
-        String firstStyle = styles[0];
-        // add style
-        progressIndicator.getStyleClass().add(firstStyle);
-        styleComboBox.setValue(firstStyle);
-        styleComboBox.valueProperty().addListener(it -> {
-            progressIndicator.getStyleClass().removeAll(styles);
-            progressIndicator.getStyleClass().add(styleComboBox.getValue());
-        });
-
-        // graphic
-        FontIcon graphic = new FontIcon();
-        CheckBox showGraphic = new CheckBox("Show Graphic");
-        showGraphic.selectedProperty().addListener((observable, oldValue, newValue) -> {
-            progressIndicator.setGraphic(newValue ? graphic : null);
-        });
-        showGraphic.setSelected(true);
+        ComboBox<ArcProgressIndicator.StyleType> styleComboBox = new ComboBox<>();
+        styleComboBox.getItems().addAll(ArcProgressIndicator.StyleType.values());
+        styleComboBox.setConverter(new EnumStringConverter<>());
+        styleComboBox.valueProperty().bindBidirectional(progressIndicator.styleTypeProperty());
+        styleComboBox.setMaxWidth(Double.MAX_VALUE);
 
         // string converter
         StringConverter<Double> defaultConvert = progressIndicator.getConverter();
@@ -61,7 +48,7 @@ public class SemiCircleProgressIndicatorApp extends Application {
         indicatorWrapper.getStyleClass().add("indicator-wrapper");
         VBox.setVgrow(indicatorWrapper, Priority.ALWAYS);
 
-        VBox bottom = new VBox(10, styleComboBox, showGraphic, customConverterBox);
+        VBox bottom = new VBox(10, styleComboBox, customConverterBox);
         bottom.setAlignment(Pos.CENTER_LEFT);
         bottom.setMaxWidth(Region.USE_PREF_SIZE);
 
@@ -72,9 +59,9 @@ public class SemiCircleProgressIndicatorApp extends Application {
         containerBox.getChildren().addAll(indicatorWrapper, new Separator(), bottom);
 
         Scene scene = new Scene(containerBox, 300, 390);
-        scene.getStylesheets().add(Objects.requireNonNull(SemiCircleProgressIndicatorApp.class.getResource("arc-progress-indicator-demo.css")).toExternalForm());
         primaryStage.setScene(scene);
-        primaryStage.setTitle("SemiCircleProgressIndicator");
+        primaryStage.setTitle("Semi Circle Progress Indicator");
+
         primaryStage.show();
     }
 

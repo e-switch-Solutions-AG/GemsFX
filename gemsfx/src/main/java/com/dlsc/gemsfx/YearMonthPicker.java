@@ -1,21 +1,25 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.YearMonthPickerSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.css.PseudoClass;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Skin;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import javafx.util.StringConverter;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Objects;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A control for quickly selecting the month of a year. The format used for the
@@ -36,13 +40,19 @@ public class YearMonthPicker extends CustomComboBox<YearMonth> {
         super();
 
         getStyleClass().setAll("year-month-picker", "text-input");
+        AccessibilityUtil.setRole(this, AccessibleRole.COMBO_BOX);
+        AccessibilityUtil.bindAccessibleText(this, Bindings.createStringBinding(() -> {
+            YearMonth value = getValue();
+            StringConverter<YearMonth> converter = getConverter();
+            return value == null ? null : converter != null ? converter.toString(value) : value.toString();
+        }, valueProperty(), converterProperty()));
 
         setFocusTraversable(false);
         setOnTouchPressed(evt -> commitValueAndShow());
 
         valueProperty().addListener(it -> updateTextAndHidedPopup());
 
-        editor.setPromptText("Example: March 2023");
+        editor.setPromptText(ResourceBundleManager.getString(ResourceBundleManager.BundleType.YEAR_MONTH_PICKER, "prompt.example-month-year", "Example: March 2023"));
         editor.editableProperty().bind(editableProperty());
         editor.setOnAction(evt -> commit());
         editor.focusedProperty().addListener(it -> {
@@ -52,7 +62,7 @@ public class YearMonthPicker extends CustomComboBox<YearMonth> {
             pseudoClassStateChanged(PseudoClass.getPseudoClass("focused"), editor.isFocused());
         });
 
-        editor.addEventHandler(KeyEvent.ANY, evt -> {
+        editor.addEventHandler(KeyEvent.KEY_PRESSED, evt -> {
             if (evt.getCode().equals(KeyCode.DOWN)) {
                 setValue(getValue().plusMonths(1));
             } else if (evt.getCode().equals(KeyCode.UP)) {
@@ -66,21 +76,37 @@ public class YearMonthPicker extends CustomComboBox<YearMonth> {
             }
         });
 
-        setMaxWidth(Region.USE_PREF_SIZE);
+        setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
         setValue(YearMonth.now());
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new YearMonthPickerSkin(this);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(YearMonthView.class.getResource("year-month-picker.css")).toExternalForm();
     }
 
+    /**
+     * Returns the year-month view used by this picker.
+     *
+     * @return the year-month view
+     */
     public YearMonthView getYearMonthView() {
         if (yearMonthView == null) {
             yearMonthView = new YearMonthView();
@@ -95,6 +121,9 @@ public class YearMonthPicker extends CustomComboBox<YearMonth> {
 
     /*
      * Performs the work of actually creating and setting a new month value.
+     */
+    /**
+     * Commits the text currently shown in the editor to the picker value.
      */
     public void commit() {
         String text = editor.getText();
@@ -135,6 +164,13 @@ public class YearMonthPicker extends CustomComboBox<YearMonth> {
     }
 
     private final ObjectProperty<StringConverter<YearMonth>> converter = new SimpleObjectProperty<>(this, "value", new StringConverter<>() {
+        /**
+         * {@inheritDoc}
+         *
+         * @return the string representation of the value
+         *
+         * @param object the value to convert
+         */
         @Override
         public String toString(YearMonth object) {
             if (object != null) {
@@ -143,6 +179,13 @@ public class YearMonthPicker extends CustomComboBox<YearMonth> {
             return null;
         }
 
+        /**
+         * {@inheritDoc}
+         *
+         * @return the parsed value
+         *
+         * @param string the string to parse
+         */
         @Override
         public YearMonth fromString(String string) {
             try {

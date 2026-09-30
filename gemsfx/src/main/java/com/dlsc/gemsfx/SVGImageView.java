@@ -1,6 +1,7 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.SVGImageViewSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
@@ -13,23 +14,43 @@ import javafx.css.StyleableStringProperty;
 import javafx.css.converter.BooleanConverter;
 import javafx.css.converter.SizeConverter;
 import javafx.css.converter.URLConverter;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * A control which can display SVG images.
  * <p>
  * SVGImageView can display svg icons in high definition, and they won't become blurry even when zoomed in.
- * <p/>
+ * <p>
  * Note for SvgImageView:
  * Currently, due to the limitation that weisj can only render BufferedImage from SVG,
  * SvgImageView does not support usage in native packaging scenarios.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-background-loading}</td><td>{@code Boolean}</td><td>Whether to load the SVG image in background.</td></tr>
+ *     <tr><td>{@code -fx-fit-height}</td><td>{@code Double}</td><td>Box height the SVG image should fit into.</td></tr>
+ *     <tr><td>{@code -fx-fit-width}</td><td>{@code Double}</td><td>Box width the SVG image should fit into.</td></tr>
+ *     <tr><td>{@code -fx-preserve-ratio}</td><td>{@code Boolean}</td><td>Whether to preserve the image aspect ratio.</td></tr>
+ *     <tr><td>{@code -fx-smooth}</td><td>{@code Boolean}</td><td>Whether to apply smoothing when rendering.</td></tr>
+ *     <tr><td>{@code -fx-svg-url}</td><td>{@code String}</td><td>The URL of the SVG image to render.</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class SVGImageView extends Control {
+    // Matches strings that start with a valid URI scheme
+    private static final Pattern URL_QUICKMATCH = Pattern.compile("^\\p{Alpha}[\\p{Alnum}+.-]*:.*$");
 
     private static final String DEFAULT_STYLE_CLASS = "svg-image-view";
     private static final double DEFAULT_FIT_WIDTH = 0;
@@ -43,6 +64,7 @@ public class SVGImageView extends Control {
      */
     public SVGImageView() {
         getStyleClass().add(DEFAULT_STYLE_CLASS);
+        AccessibilityUtil.setRole(this, AccessibleRole.IMAGE_VIEW);
         setFocusTraversable(false);
     }
 
@@ -59,6 +81,52 @@ public class SVGImageView extends Control {
     @Override
     protected Skin<?> createDefaultSkin() {
         return new SVGImageViewSkin(this);
+    }
+
+    private static String validateUrl(final String url) {
+        if (url == null) {
+            throw new NullPointerException("URL must not be null");
+        }
+
+        if (url.trim().isEmpty()) {
+            throw new IllegalArgumentException("URL must not be empty");
+        }
+
+        try {
+            if (!URL_QUICKMATCH.matcher(url).matches()) {
+                final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+                URL resource;
+                if (url.charAt(0) == '/') {
+                    resource = contextClassLoader.getResource(url.substring(1));
+                } else {
+                    resource = contextClassLoader.getResource(url);
+                }
+                if (resource == null) {
+                    throw new IllegalArgumentException("Invalid URL or resource not found");
+                }
+                return resource.toString();
+            }
+
+            // Use URL constructor for validation
+            return new URL(url).toString();
+        } catch (final IllegalArgumentException | MalformedURLException e) {
+            throw new IllegalArgumentException(constructDetailedExceptionMessage("Invalid URL", e), e);
+        }
+    }
+
+    private static String constructDetailedExceptionMessage(
+            final String mainMessage,
+            final Throwable cause) {
+        if (cause == null) {
+            return mainMessage;
+        }
+
+        final String causeMessage = cause.getMessage();
+        return constructDetailedExceptionMessage(
+                (causeMessage != null)
+                        ? mainMessage + ": " + causeMessage
+                        : mainMessage,
+                cause.getCause());
     }
 
     private final DoubleProperty fitWidth = new StyleableDoubleProperty(DEFAULT_FIT_WIDTH) {
@@ -90,13 +158,19 @@ public class SVGImageView extends Control {
 
     /**
      * Defines the width of the box that the source svg image should fit into. If the
-     * value is <= 0, the svg image's intrinsic width will be used.
+     * value is &lt;= 0, the svg image's intrinsic width will be used.
      * <p>
      * When {@link #preserveRatioProperty()} is set to true, then the actual displayed
      * width of the image is constrained not only by this property, but
      * also by {@link #fitHeightProperty()}, and it may not be the same as fitWidth.
-     * <p/>
-     * The default value is 0.
+     * </p>
+     * <p>
+     * Can be set via CSS using the {@code -fx-fit-width} property.
+     * Valid values are: numbers (use {@code 0} to use the image's intrinsic width).
+     * The default value is {@code 0}.
+     * </p>
+     *
+     * @return the fit width property
      */
     public final DoubleProperty fitWidthProperty() {
         return fitWidth;
@@ -139,13 +213,19 @@ public class SVGImageView extends Control {
 
     /**
      * Defines the height of the box that the source svg image should fit into. If the
-     * value is <= 0, the svg image's intrinsic height will be used.
+     * value is &lt;= 0, the svg image's intrinsic height will be used.
      * <p>
      * When {@link #preserveRatioProperty()} is set to true, then the actual displayed
      * height of the image is constrained not only by this property, but
      * also by {@link #fitWidthProperty()}, and it may not be the same as fitHeight.
-     * <p/>
-     * The default value is 0.
+     * </p>
+     * <p>
+     * Can be set via CSS using the {@code -fx-fit-height} property.
+     * Valid values are: numbers (use {@code 0} to use the image's intrinsic height).
+     * The default value is {@code 0}.
+     * </p>
+     *
+     * @return the fit height property
      */
     public final DoubleProperty fitHeightProperty() {
         return fitHeight;
@@ -192,7 +272,12 @@ public class SVGImageView extends Control {
      * When set to false, the image may be stretched or compressed to fit the specified dimensions,
      * without preserving its aspect ratio.
      * <p>
-     * The default value is false
+     * Can be set via CSS using the {@code -fx-preserve-ratio} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code true}.
+     * </p>
+     *
+     * @return the preserve-ratio property
      */
     public final BooleanProperty preserveRatioProperty() {
         return preserveRatio;
@@ -239,7 +324,12 @@ public class SVGImageView extends Control {
      * smoothing algorithm. If true, the image will be rendered with smoothing
      * applied, which can improve the visual quality but may reduce performance.
      * <p>
-     * defaultValue true
+     * Can be set via CSS using the {@code -fx-smooth} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code true}.
+     * </p>
+     *
+     * @return the smooth property
      */
     public final BooleanProperty smoothProperty() {
         return smooth;
@@ -284,7 +374,12 @@ public class SVGImageView extends Control {
      * A property that holds the URL of the SVG image to be rendered.
      * Changing the URL will result in loading and rendering the new SVG image.
      * <p>
-     * defaultValue null
+     * Can be set via CSS using the {@code -fx-svg-url} property.
+     * Valid values are: a URL string pointing to an SVG file.
+     * The default value is {@code null}.
+     * </p>
+     *
+     * @return the SVG URL property
      */
     public final StringProperty svgUrlProperty() {
         return svgUrl;
@@ -296,7 +391,7 @@ public class SVGImageView extends Control {
      * @param svgUrl The svg url value.
      */
     public final void setSvgUrl(String svgUrl) {
-        this.svgUrl.set(svgUrl);
+        this.svgUrl.set(validateUrl(svgUrl));
     }
 
     private final BooleanProperty backgroundLoading = new StyleableBooleanProperty(DEFAULT_BACKGROUND_LOADING) {
@@ -331,7 +426,12 @@ public class SVGImageView extends Control {
      * When set to true, the image is loaded in a background thread, allowing for
      * asynchronous loading of images.
      * <p>
-     * defaultValue false
+     * Can be set via CSS using the {@code -fx-background-loading} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code false}.
+     * </p>
+     *
+     * @return the background-loading property
      */
     public final BooleanProperty backgroundLoadingProperty() {
         return backgroundLoading;

@@ -1,0 +1,114 @@
+package com.dlsc.gemsfx.demo;
+
+import atlantafx.base.controls.RingProgressIndicator;
+import com.dlsc.gemsfx.LoadingPane;
+import com.dlsc.gemsfx.LoadingPane.Status;
+import com.dlsc.gemsfx.util.EnumStringConverter;
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+public class LoadingPaneApp extends GemApplication {
+
+    @Override
+    public void start(Stage stage) { super.start(stage);
+        Label node = new Label("Some content goes here...");
+        node.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+        if (Boolean.getBoolean("atlantafx")) {
+            node.setStyle("-fx-background-color: -color-bg-inset;");
+        } else {
+            node.setStyle("-fx-background-color: white;");
+        }
+        node.setAlignment(Pos.CENTER);
+
+        LoadingPane loadingPane = new LoadingPane(node);
+        loadingPane.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
+        if (Boolean.getBoolean("atlantafx")) {
+            loadingPane.setStyle("-fx-border-color: -color-border-default;");
+        } else {
+            loadingPane.setStyle("-fx-border-color: black;");
+        }
+        loadingPane.setError("Some error message...");
+
+        if (Boolean.getBoolean("atlantafx")) {
+            RingProgressIndicator progressIndicator = new RingProgressIndicator();
+            loadingPane.setProgressIndicator(progressIndicator);
+        }
+
+        ComboBox<Status> statusBox = new ComboBox<>();
+        statusBox.getItems().addAll(Status.values());
+        statusBox.setConverter(new EnumStringConverter<>());
+        statusBox.valueProperty().bindBidirectional(loadingPane.statusProperty());
+
+        ComboBox<LoadingPane.Size> sizeBox = new ComboBox<>();
+        sizeBox.getItems().addAll(LoadingPane.Size.values());
+        sizeBox.setConverter(new EnumStringConverter<>());
+        sizeBox.valueProperty().bindBidirectional(loadingPane.sizeProperty());
+
+        Button simulateLoading = new Button("Load");
+        simulateLoading.setOnAction(evt -> {
+            loadingPane.setStatus(Status.OK);
+            Thread thread = new Thread(() -> {
+                loadingPane.load();
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                for (int i = 0; i <= 100; i++) {
+                    final double value = i;
+                    Platform.runLater(() -> {
+                        loadingPane.setProgress(value / 100d);
+                    });
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                if (Math.random() > .5) {
+                    loadingPane.error("something went wrong");
+                } else {
+                    loadingPane.ok();
+                }
+            });
+            thread.setDaemon(true);
+            thread.start();
+        });
+
+        Button scenicViewButton = new Button("Dev Tools");
+        hideInBrowser(scenicViewButton);
+        configureDevToolsButton(scenicViewButton);
+
+        HBox hBox = new HBox(10, statusBox, sizeBox, simulateLoading, scenicViewButton);
+        hBox.setAlignment(Pos.CENTER);
+        VBox vBox = new VBox(20, loadingPane, hBox);
+
+        vBox.setAlignment(Pos.CENTER);
+        vBox.setPadding(new Insets(20));
+        vBox.setAlignment(Pos.CENTER);
+        vBox.setMinSize(400, 400);
+
+        Scene scene = new Scene(vBox);
+
+        stage.setTitle("Loading Pane");
+        stage.setScene(scene);
+        stage.sizeToScene();
+
+        stage.show();
+    }
+
+    public static void main(String[] args) {
+        launch();
+    }
+}

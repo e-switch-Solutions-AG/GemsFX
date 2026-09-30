@@ -2,7 +2,6 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.ExpandingTextArea;
 
-import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -13,10 +12,10 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class ExpandingTextAreaApp extends Application {
+public class ExpandingTextAreaApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         TextField textField = new TextField();
         textField.setPromptText("Regular text field");
         textField.setMaxWidth(400);
@@ -32,6 +31,9 @@ public class ExpandingTextAreaApp extends Application {
 
         VBox parent = new VBox(20, textField, expandingTextArea, textArea);
         parent.setMinHeight(Region.USE_PREF_SIZE);
+        if (Boolean.getBoolean("atlantafx")) {
+            parent.setStyle("-fx-background-color: -color-bg-default;");
+        }
 
         parent.setFillWidth(false);
         parent.setAlignment(Pos.CENTER);
@@ -47,7 +49,7 @@ public class ExpandingTextAreaApp extends Application {
         stage.setScene(scene);
         stage.setWidth(1000);
         stage.setHeight(850);
-        stage.centerOnScreen();
+
         stage.show();
     }
 

@@ -9,11 +9,20 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.skin.TextFieldSkin;
 import javafx.scene.layout.StackPane;
+import javafx.scene.text.HitInfo;
 import javafx.scene.text.Text;
 
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Editor skin used by {@link SearchField}.
+ * <p>
+ * The skin decorates the editor text field with optional left and right nodes,
+ * search or busy graphics, and an auto-completion text overlay.
+ *
+ * @param <T> the suggestion item type
+ */
 public class SearchFieldEditorSkin<T> extends TextFieldSkin {
 
     private static final PseudoClass HAS_NO_SIDE_NODE = PseudoClass.getPseudoClass("no-side-nodes"); //$NON-NLS-1$
@@ -27,6 +36,11 @@ public class SearchFieldEditorSkin<T> extends TextFieldSkin {
     private StackPane leftPane;
     private StackPane rightPane;
 
+    /**
+     * Creates a new editor skin for the given search field.
+     *
+     * @param searchField the search field whose editor is skinned
+     */
     public SearchFieldEditorSkin(SearchField<T> searchField) {
         super(searchField.getEditor());
 
@@ -207,4 +221,11 @@ public class SearchFieldEditorSkin<T> extends TextFieldSkin {
                 Math.max(0, Math.min(autoCompleteWidth, w - autoCompletionX)),
                 h);
     }
+
+    @Override
+    public HitInfo getIndex(double x, double y) {
+        final double leftWidth = leftPane == null ? 0.0 : snapSizeX(leftPane.prefWidth(getSkinnable().getHeight()));
+        return super.getIndex(x - leftWidth, y);
+    }
+
 }

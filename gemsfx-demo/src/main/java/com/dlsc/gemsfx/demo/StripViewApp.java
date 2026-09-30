@@ -5,8 +5,6 @@ import com.dlsc.gemsfx.StripView.StripCell;
 import com.dlsc.gemsfx.demo.fake.WeatherCondition;
 import com.dlsc.gemsfx.demo.fake.WeatherData;
 import com.dlsc.gemsfx.demo.fake.WeatherSummaryPane;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -19,16 +17,15 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.time.LocalDate;
 import java.util.Objects;
 
-public class StripViewApp extends Application {
+public class StripViewApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         StripView<String> textView = new StripView<>();
         textView.setMinHeight(Region.USE_PREF_SIZE);
         textView.setFadingSize(200);
@@ -126,20 +123,22 @@ public class StripViewApp extends Application {
         vBox.setAlignment(Pos.TOP_LEFT);
 
         Scene scene = new Scene(vBox);
-        scene.setFill(Color.WHITE);
         scene.getStylesheets().add(Objects.requireNonNull(StripViewApp.class.getResource("fonts.css")).toExternalForm());
-        scene.getStylesheets().add(Objects.requireNonNull(StripViewApp.class.getResource("strip-view-app.css")).toExternalForm());
 
-        CSSFX.start();
+        weatherView.getStylesheets().add(Objects.requireNonNull(StripViewApp.class.getResource("strip-view-app.css")).toExternalForm());
+        if (Boolean.getBoolean("atlantafx")) {
+            weatherView.getStylesheets().add(Objects.requireNonNull(StripViewApp.class.getResource("strip-view-app-atlantafx.css")).toExternalForm());
+        } else {
+            weatherView.getStylesheets().add(Objects.requireNonNull(StripViewApp.class.getResource("strip-view-app-modena.css")).toExternalForm());
+        }
 
         stage.setTitle("Strip View");
         stage.setScene(scene);
         stage.setWidth(1200);
         stage.setHeight(500);
-        stage.centerOnScreen();
+
         stage.show();
     }
-
 
     private WeatherData createWeatherData(int i, WeatherCondition condition) {
         LocalDate date = LocalDate.now();

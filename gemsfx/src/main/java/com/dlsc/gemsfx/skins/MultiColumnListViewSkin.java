@@ -1,19 +1,25 @@
 package com.dlsc.gemsfx.skins;
 
+import com.dlsc.gemsfx.LoadingPane;
+import com.dlsc.gemsfx.LoadingPane.Status;
 import com.dlsc.gemsfx.MultiColumnListView;
+import com.dlsc.gemsfx.MultiColumnListView.ColumnItem;
 import com.dlsc.gemsfx.MultiColumnListView.ColumnListCell;
+import com.dlsc.gemsfx.MultiColumnListView.DropParameter;
 import com.dlsc.gemsfx.MultiColumnListView.ListViewColumn;
+import com.dlsc.gemsfx.MultiColumnListView.MultiColumnListViewEvent;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
+import javafx.event.EventHandler;
 import javafx.geometry.HPos;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
-import javafx.scene.control.SkinBase;
+import javafx.scene.input.DragEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -22,28 +28,96 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.RowConstraints;
 import javafx.util.Callback;
 
-public class MultiColumnListViewSkin<T> extends SkinBase<MultiColumnListView<T>> {
+/**
+ * Skin for {@link MultiColumnListView}.
+ * <p>
+ * The skin builds a grid of list-view columns, optional headers and separators, a loading overlay, and placeholders
+ * that participate in drag-and-drop between columns.
+ *
+ * @param <T> the item type displayed in the columns
+ */
+public class MultiColumnListViewSkin<T> extends GemsSkinBase<MultiColumnListView<T>> {
 
     private final GridPane gridPane = new GridPane();
 
+    private final LoadingPane loadingPane;
+
+    /**
+     * Creates a skin for the given multi-column list view.
+     *
+     * @param view the multi-column list view rendered by this skin
+     */
     public MultiColumnListViewSkin(MultiColumnListView<T> view) {
         super(view);
 
-        InvalidationListener updateListener = (Observable it) -> updateView();
-        view.columnsProperty().addListener(updateListener);
-        view.showHeadersProperty().addListener(updateListener);
-        view.separatorFactoryProperty().addListener(updateListener);
-        view.listViewFactoryProperty().addListener(updateListener);
-        updateView();
-
         gridPane.getStyleClass().add("grid-pane");
 
-        getChildren().setAll(gridPane);
+        loadingPane = new LoadingPane(gridPane) {
+            @Override
+            public String getUserAgentStylesheet() {
+                return null;
+            }
+        };
+        loadingPane.statusProperty().bind(view.loadingStatusProperty());
+        loadingPane.sizeProperty().bind(view.loadingStatusSizeProperty());
+        loadingPane.progressIndicatorProperty().bind(view.progressIndicatorProperty());
+
+        InvalidationListener updateListener = (Observable it) -> updateView();
+        register(view.columnsProperty(), updateListener);
+        register(view.showHeadersProperty(), updateListener);
+        register(view.separatorFactoryProperty(), updateListener);
+        register(view.listViewFactoryProperty(), updateListener);
+        register(view.placeholderProperty(), updateListener);
+        register(view.loadingStatusProperty(), (Observable it) -> updateChildren());
+
+        updateView();
+    }
+
+    @Override
+    public void dispose() {
+        loadingPane.statusProperty().unbind();
+        loadingPane.sizeProperty().unbind();
+        loadingPane.progressIndicatorProperty().unbind();
+        super.dispose();
+    }
+
+    private void updateChildren() {
+        MultiColumnListView<T> view = getSkinnable();
+
+        if (view == null) {
+            return;
+        }
+
+        Node placeholder = view.getPlaceholder();
+
+        // the loading pane takes precedence, otherwise the placeholder would hide the
+        // progress indicator or the error message while the columns are still loading
+        boolean showPlaceholder = view.getColumns().isEmpty()
+                && placeholder != null
+                && view.getLoadingStatus() == Status.OK;
+
+        if (showPlaceholder) {
+            if (placeholder instanceof Region) {
+                ((Region) placeholder).setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            }
+            getChildren().setAll(placeholder);
+        } else {
+            getChildren().setAll(loadingPane);
+        }
     }
 
     private void updateView() {
         gridPane.getChildren().clear();
         gridPane.getColumnConstraints().clear();
+
+        MultiColumnListView<T> view = getSkinnable();
+        ObservableList<ListViewColumn<T>> columns = view.getColumns();
+
+        updateChildren();
+
+        if (columns.isEmpty()) {
+            return;
+        }
 
         RowConstraints row1 = new RowConstraints();
         row1.setVgrow(Priority.NEVER);
@@ -53,15 +127,12 @@ public class MultiColumnListViewSkin<T> extends SkinBase<MultiColumnListView<T>>
         row2.setVgrow(Priority.ALWAYS);
         row2.setFillHeight(true);
 
-        MultiColumnListView<T> view = getSkinnable();
-
         if (view.isShowHeaders()) {
             gridPane.getRowConstraints().setAll(row1, row2);
         } else {
             gridPane.getRowConstraints().setAll(row2);
         }
 
-        ObservableList<ListViewColumn<T>> columns = view.getColumns();
         int numberOfColumns = columns.size();
 
         Callback<Integer, Node> separatorFactory = view.getSeparatorFactory();
@@ -92,31 +163,56 @@ public class MultiColumnListViewSkin<T> extends SkinBase<MultiColumnListView<T>>
                 ((Region) header).setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
             }
 
-            ListView<T> listView = view.getListViewFactory().call(view);
+            ListView<ColumnItem<T>> listView = view.getListViewFactory().call(view);
             if (listView.getPlaceholder() == null) {
                 createPlaceholder(listView);
             }
 
-            initPlaceholder(listView, listView.getPlaceholder());
+            initPlaceholder(listView, listView.getPlaceholder(), column);
             listView.placeholderProperty().addListener((obs, oldPlaceholder, newPlaceholder) -> {
                 if (newPlaceholder == null) {
                     createPlaceholder(listView);
                 }
-                initPlaceholder(listView, listView.getPlaceholder());
+                initPlaceholder(listView, listView.getPlaceholder(), column);
             });
 
-            listView.itemsProperty().bind(column.itemsProperty());
+            listView.setItems(column.getItemWrappers());
 
             listView.cellFactoryProperty().bind(Bindings.createObjectBinding(() -> lv -> {
                 Callback<MultiColumnListView<T>, ColumnListCell<T>> cellFactory = view.getCellFactory();
-                return cellFactory.call(view);
+                ColumnListCell<T> cell = cellFactory.call(view);
+                cell.updateColumn(column);
+                return cell;
             }, view.cellFactoryProperty()));
 
+            Region columnBackground = new Region();
+            columnBackground.getStyleClass().add("column-background-region");
+
+            Region columnForeground = new Region();
+            columnForeground.getStyleClass().add("column-foreground-region");
+            columnForeground.setMouseTransparent(true);
+
+            InvalidationListener hoverListener = (Observable o) -> columnForeground.pseudoClassStateChanged(PseudoClass.getPseudoClass("hover"), listView.isHover());
+            EventHandler<DragEvent> hoverDragEnterHandler = (DragEvent event) -> columnForeground.pseudoClassStateChanged(PseudoClass.getPseudoClass("hover"), true);
+            EventHandler<DragEvent> hoverDragExitHandler = (DragEvent event) -> columnForeground.pseudoClassStateChanged(PseudoClass.getPseudoClass("hover"), false);
+
+            listView.hoverProperty().addListener(hoverListener);
+            listView.addEventHandler(DragEvent.DRAG_ENTERED, hoverDragEnterHandler);
+            listView.addEventHandler(DragEvent.DRAG_EXITED, hoverDragExitHandler);
+
             if (view.isShowHeaders()) {
+                gridPane.add(columnBackground, col, 0);
+                GridPane.setRowSpan(columnBackground, 2);
+
                 gridPane.add(header, col, 0);
                 gridPane.add(listView, col, 1);
+
+                gridPane.add(columnForeground, col, 0);
+                GridPane.setRowSpan(columnForeground, 2);
             } else {
+                gridPane.add(columnBackground, col, 0);
                 gridPane.add(listView, col, 0);
+                gridPane.add(columnForeground, col, 0);
             }
 
             if (separatorFactory != null && columnIndex < numberOfColumns - 1) {
@@ -134,7 +230,7 @@ public class MultiColumnListViewSkin<T> extends SkinBase<MultiColumnListView<T>>
         } while (columnIndex < numberOfColumns);
     }
 
-    private void createPlaceholder(ListView<T> listView) {
+    private void createPlaceholder(ListView<ColumnItem<T>> listView) {
         Label label = new Label();
         label.getStyleClass().add("placeholder");
         label.setAlignment(Pos.CENTER);
@@ -142,19 +238,49 @@ public class MultiColumnListViewSkin<T> extends SkinBase<MultiColumnListView<T>>
         listView.setPlaceholder(label);
     }
 
-    private void initPlaceholder(ListView listView, Node placeholder) {
+    private void initPlaceholder(ListView<ColumnItem<T>> listView, Node placeholder, ListViewColumn<T> column) {
         placeholder.setOnDragOver(event -> {
+            MultiColumnListView<T> multiColumnListView = getSkinnable();
+            T draggedItem = multiColumnListView.getDraggedItem();
+            DropParameter<T> dropParameter = new DropParameter<>(draggedItem, column);
+            Callback<DropParameter<T>, Boolean> callback = multiColumnListView.getDropPossibleCallback();
+            if (callback.call(dropParameter)) {
+                event.acceptTransferModes(TransferMode.MOVE);
+                multiColumnListView.fireEvent(new MultiColumnListViewEvent(MultiColumnListViewEvent.DRAG_OVER, draggedItem, column, 0));
+            } else {
+                event.acceptTransferModes(TransferMode.NONE);
+            }
             event.consume();
-            event.acceptTransferModes(TransferMode.MOVE);
         });
 
         placeholder.setOnDragDropped(event -> {
-            listView.getItems().add(getSkinnable().getDraggedItem());
+            MultiColumnListView<T> multiColumnListView = getSkinnable();
+            T draggedItem = multiColumnListView.getDraggedItem();
+            ColumnItem<T> draggedColumnItem = multiColumnListView.getDraggedColumnItem();
+            if (draggedColumnItem != null) {
+                listView.getItems().add(draggedColumnItem);
+            }
             event.setDropCompleted(true);
             event.consume();
+            getSkinnable().fireEvent(new MultiColumnListViewEvent(MultiColumnListViewEvent.DRAG_OVER, draggedItem, column, 0));
         });
 
-        placeholder.setOnDragEntered(evt -> placeholder.pseudoClassStateChanged(PseudoClass.getPseudoClass("drag-over"), true));
-        placeholder.setOnDragExited(evt -> placeholder.pseudoClassStateChanged(PseudoClass.getPseudoClass("drag-over"), false));
+        placeholder.setOnDragEntered(evt -> {
+            T draggedItem = getSkinnable().getDraggedItem();
+            DropParameter<T> dropParameter = new DropParameter<>(draggedItem, column);
+            Callback<DropParameter<T>, Boolean> callback = getSkinnable().getDropPossibleCallback();
+            if (callback.call(dropParameter)) {
+                placeholder.pseudoClassStateChanged(PseudoClass.getPseudoClass("drag-over"), true);
+            }
+        });
+
+        placeholder.setOnDragExited(evt -> {
+            T draggedItem = getSkinnable().getDraggedItem();
+            DropParameter<T> dropParameter = new DropParameter<>(draggedItem, column);
+            Callback<DropParameter<T>, Boolean> callback = getSkinnable().getDropPossibleCallback();
+            if (callback.call(dropParameter)) {
+                placeholder.pseudoClassStateChanged(PseudoClass.getPseudoClass("drag-over"), false);
+            }
+        });
     }
 }

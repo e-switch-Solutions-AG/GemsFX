@@ -30,9 +30,21 @@ import java.util.List;
  *
  * The active state of the Spacer can also be controlled through CSS with the
  * "-fx-active" property.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-active}</td><td>{@code Boolean}</td><td>Whether the spacer is active.</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class Spacer extends Region {
 
+    /**
+     * Constructs a new spacer.
+     */
     public Spacer() {
         getStyleClass().add("spacer");
 
@@ -44,16 +56,31 @@ public class Spacer extends Region {
     }
 
     private final BooleanProperty active = new StyleableBooleanProperty(true) {
+        /**
+         * {@inheritDoc}
+         *
+         * @return the owning bean
+         */
         @Override
         public Object getBean() {
             return Spacer.this;
         }
 
+        /**
+         * {@inheritDoc}
+         *
+         * @return the property name
+         */
         @Override
         public String getName() {
             return "active";
         }
 
+        /**
+         * {@inheritDoc}
+         *
+         * @return the CSS metadata for this property
+         */
         @Override
         public CssMetaData<Spacer, Boolean> getCssMetaData() {
             return StyleableProperties.ACTIVE;
@@ -68,6 +95,17 @@ public class Spacer extends Region {
         active.set(value);
     }
 
+    /**
+     * Determines whether the spacer is active. When active, the spacer tries to grow as much as possible
+     * within its parent container. When inactive, it collapses and does not take up any space.
+     * <p>
+     * Can be set via CSS using the {@code -fx-active} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code true}.
+     * </p>
+     *
+     * @return the active property
+     */
     public final BooleanProperty activeProperty() {
         return active;
     }
@@ -76,11 +114,25 @@ public class Spacer extends Region {
         private static final CssMetaData<Spacer, Boolean> ACTIVE =
                 new CssMetaData<>("-fx-active", BooleanConverter.getInstance(), false) {
 
+                    /**
+                     * {@inheritDoc}
+                     *
+                     * @return true if the property can be styled
+                     *
+                     * @param n the control to inspect
+                     */
                     @Override
                     public boolean isSettable(Spacer n) {
                         return !n.active.isBound();
                     }
 
+                    /**
+                     * {@inheritDoc}
+                     *
+                     * @return the styleable property
+                     *
+                     * @param n the control to inspect
+                     */
                     @Override
                     public StyleableProperty<Boolean> getStyleableProperty(Spacer n) {
                         return (StyleableProperty<Boolean>) n.activeProperty();
@@ -96,10 +148,20 @@ public class Spacer extends Region {
         }
     }
 
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the CSS metadata supported by this control
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return StyleableProperties.STYLEABLES;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the supported CSS metadata
+     */
     @Override
     public List<CssMetaData<? extends Styleable, ?>> getCssMetaData() {
         return getClassCssMetaData();

@@ -2,7 +2,7 @@ package com.dlsc.gemsfx.demo.binding;
 
 import com.dlsc.gemsfx.binding.TransformedFlattenedNestedListStreamBinding;
 import com.dlsc.gemsfx.binding.TransformedNestedListBinding;
-import javafx.application.Application;
+import com.dlsc.gemsfx.demo.GemApplication;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * student has a list of scores. We create a binding that calculates the total and average score of
  * all students.
  */
-public class NestedListBindingApp extends Application {
+public class NestedListBindingApp extends GemApplication {
 
     private final Random random = new Random();
     private ListView<ObservableList<Number>> listView;
@@ -33,6 +33,8 @@ public class NestedListBindingApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         scores = FXCollections.observableArrayList();
         scores.addAll(FXCollections.observableArrayList(80, 90, 85), FXCollections.observableArrayList(70, 75, 60));
 
@@ -78,6 +80,7 @@ public class NestedListBindingApp extends Application {
         primaryStage.setTitle("Student Score History");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
+
         primaryStage.show();
     }
 
@@ -87,7 +90,11 @@ public class NestedListBindingApp extends Application {
 
         VBox vBox = new VBox(10, titleLabel, innerBox);
         vBox.setAlignment(Pos.CENTER_LEFT);
-        vBox.setStyle("-fx-border-color: lightgrey; -fx-border-width: 1px; -fx-border-radius: 5px;-fx-padding: 5px;-fx-background-color: #f9f9f9;");
+        if (Boolean.getBoolean("atlantafx")) {
+            vBox.setStyle("-fx-border-color: -color-border-default; -fx-border-width: 1px; -fx-border-radius: 5px;-fx-padding: 5px;-fx-background-color: -color-bg-inset;");
+        } else {
+            vBox.setStyle("-fx-border-color: lightgrey; -fx-border-width: 1px; -fx-border-radius: 5px;-fx-padding: 5px;-fx-background-color: #f9f9f9;");
+        }
         return vBox;
     }
 

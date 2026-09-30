@@ -1,8 +1,7 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.BeforeAfterView;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -15,10 +14,12 @@ import javafx.stage.Stage;
 
 import java.util.Objects;
 
-public class BeforeAfterViewApp extends Application {
+public class BeforeAfterViewApp extends GemApplication {
 
     @Override
     public void start(Stage stage) {
+        super.start(stage);
+
         Image beforeImage = new Image(Objects.requireNonNull(BeforeAfterViewApp.class.getResource("berlin/before1.png")).toExternalForm());
         Image afterImage = new Image(Objects.requireNonNull(BeforeAfterViewApp.class.getResource("berlin/after1.png")).toExternalForm());
 
@@ -27,6 +28,7 @@ public class BeforeAfterViewApp extends Application {
 
         ComboBox<Orientation> orientationComboBox = new ComboBox<>();
         orientationComboBox.getItems().addAll(Orientation.values());
+        orientationComboBox.setConverter(new EnumStringConverter<>());
         orientationComboBox.valueProperty().bindBidirectional(beforeAfterView.orientationProperty());
 
         VBox vBox = new VBox(40, beforeAfterView, orientationComboBox);
@@ -35,13 +37,12 @@ public class BeforeAfterViewApp extends Application {
         vBox.setAlignment(Pos.CENTER);
 
         Scene scene = new Scene(vBox);
-        CSSFX.start();
 
         stage.setTitle("BeforeAfterView");
         stage.setScene(scene);
         stage.setWidth(1000);
         stage.setHeight(850);
-        stage.centerOnScreen();
+
         stage.show();
     }
 

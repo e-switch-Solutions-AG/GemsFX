@@ -4,8 +4,6 @@ import com.dlsc.gemsfx.CalendarPicker;
 import com.dlsc.gemsfx.daterange.DateRange;
 import com.dlsc.gemsfx.daterange.DateRangePicker;
 import com.dlsc.gemsfx.daterange.DateRangePreset;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -14,10 +12,10 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import org.scenicview.ScenicView;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -26,12 +24,15 @@ import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
 import java.util.Locale;
 
-public class DateRangePickerApp extends Application {
+public class DateRangePickerApp extends GemApplication {
 
     @Override
     public void start(Stage stage) {
+        super.start(stage);
+
         DateRangePicker picker = new DateRangePicker();
         picker.setValue(new DateRange("Initial Range", LocalDate.now(), LocalDate.now().plusDays(8)));
+        picker.setMaxWidth(Double.MAX_VALUE);
 
         ComboBox<String> comboBox = new ComboBox<>();
         comboBox.setEditable(false);
@@ -50,13 +51,19 @@ public class DateRangePickerApp extends Application {
         CalendarPicker calendarPicker = new CalendarPicker();
         calendarPicker.setMaxWidth(Double.MAX_VALUE);
 
-        Button scenicViewButton = new Button("Scenic View");
+        Button scenicViewButton = new Button("Dev Tools");
+        hideInBrowser(scenicViewButton);
 
         CheckBox showPresetTitleCheckBox = new CheckBox("Show preset title");
         showPresetTitleCheckBox.selectedProperty().bindBidirectional(picker.showPresetTitleProperty());
 
         CheckBox showIconCheckBox = new CheckBox("Show icon");
         showIconCheckBox.selectedProperty().bindBidirectional(picker.showIconProperty());
+
+        TextField promptTextField = new TextField();
+        promptTextField.setPromptText("Prompt Text");
+        promptTextField.textProperty().bindBidirectional(picker.promptTextProperty());
+        promptTextField.setMaxWidth(Double.MAX_VALUE);
 
         ComboBox<DateTimeFormatter> formattersBox = new ComboBox<>();
         formattersBox.getItems().add(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT));
@@ -87,19 +94,17 @@ public class DateRangePickerApp extends Application {
 
         HBox popupButtons = new HBox(10, showPopupButton, hidePopupButton);
 
-        VBox vBox = new VBox(10, picker, comparisonLabel, comboBox, datePicker, choiceBox, calendarPicker, optionsLabel, smallBox, showPresetTitleCheckBox, showIconCheckBox, formattersBox, changePresetsButton, popupButtons, scenicViewButton);
+        VBox vBox = new VBox(10, picker, comparisonLabel, comboBox, datePicker, choiceBox, calendarPicker, optionsLabel, promptTextField, smallBox, showPresetTitleCheckBox, showIconCheckBox, formattersBox, changePresetsButton, popupButtons, scenicViewButton);
 
         vBox.setPadding(new Insets(20));
 
         Scene scene = new Scene(vBox);
-        scenicViewButton.setOnAction(evt -> ScenicView.show(scene));
-
-        CSSFX.start(scene);
+        configureDevToolsButton(scenicViewButton);
 
         stage.setTitle("Date Range Picker");
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.centerOnScreen();
+
         stage.show();
     }
 

@@ -14,19 +14,34 @@ import javafx.scene.Node;
 import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.PopupControl;
 import javafx.scene.control.Skin;
-import javafx.scene.control.SkinBase;
 import javafx.scene.control.Skinnable;
 import javafx.scene.layout.Region;
 import javafx.stage.WindowEvent;
 
-public abstract class CustomComboBoxSkinBase<T extends ComboBoxBase> extends SkinBase<T> {
+/**
+ * Base skin for custom combo-box controls with popup content.
+ * <p>
+ * The skin manages a {@link PopupControl}, sizes and positions it relative to
+ * the skinnable combo box, and delegates creation of the popup node to
+ * subclasses.
+ *
+ * @param <T> the combo-box control type rendered by this skin
+ */
+public abstract class CustomComboBoxSkinBase<T extends ComboBoxBase> extends GemsSkinBase<T> {
 
     private boolean popupNeedsReconfiguring = true;
 
+    private PopupControl popup;
+
+    /**
+     * Creates a skin for the given combo-box control.
+     *
+     * @param control the combo-box control rendered by this skin
+     */
     public CustomComboBoxSkinBase(T control) {
         super(control);
 
-        control.showingProperty().addListener(it -> {
+        register(control.showingProperty(), it -> {
             if (control.isShowing()) {
                 show();
             } else if (popup != null) {
@@ -34,15 +49,13 @@ public abstract class CustomComboBoxSkinBase<T extends ComboBoxBase> extends Ski
             }
         });
 
-        control.focusedProperty().addListener(it -> {
+        register(control.focusedProperty(), it -> {
             if (!control.isFocused()) {
                 hide();
             }
         });
 
     }
-
-    private PopupControl popup;
 
     private PopupControl getPopup() {
         if (popup == null) {
@@ -51,6 +64,11 @@ public abstract class CustomComboBoxSkinBase<T extends ComboBoxBase> extends Ski
         return popup;
     }
 
+    /**
+     * Returns the content node shown inside the popup.
+     *
+     * @return the popup content node
+     */
     protected abstract Node getPopupContent();
 
     private void positionAndShowPopup() {
@@ -148,25 +166,23 @@ public abstract class CustomComboBoxSkinBase<T extends ComboBoxBase> extends Ski
         });
         popup.setOnAutoHide(this::popupOnAutoHide);
 
-        // Fix for RT-21207
         InvalidationListener layoutPosListener = o -> {
             popupNeedsReconfiguring = true;
             reconfigurePopup();
         };
-        getSkinnable().layoutXProperty().addListener(layoutPosListener);
-        getSkinnable().layoutYProperty().addListener(layoutPosListener);
-        getSkinnable().widthProperty().addListener(layoutPosListener);
-        getSkinnable().heightProperty().addListener(layoutPosListener);
+        register(getSkinnable().layoutXProperty(), layoutPosListener);
+        register(getSkinnable().layoutYProperty(), layoutPosListener);
+        register(getSkinnable().widthProperty(), layoutPosListener);
+        register(getSkinnable().heightProperty(), layoutPosListener);
 
         // RT-36966 - if skinnable's scene becomes null, ensure popup is closed
-        getSkinnable().sceneProperty().addListener(o -> {
+        register(getSkinnable().sceneProperty(), o -> {
             if (((ObservableValue) o).getValue() == null) {
                 hide();
             } else if (getSkinnable().isShowing()) {
                 show();
             }
         });
-
     }
 
     void reconfigurePopup() {
@@ -216,9 +232,17 @@ public abstract class CustomComboBoxSkinBase<T extends ComboBoxBase> extends Ski
         }
     }
 
+    /**
+     * Handles popup auto-hide events.
+     *
+     * @param event the auto-hide event
+     */
     protected void popupOnAutoHide(Event event) {
     }
 
+    /**
+     * Shows the popup and requests focus for its content.
+     */
     public void show() {
         T control = getSkinnable();
         if (control == null) {
@@ -234,6 +258,9 @@ public abstract class CustomComboBoxSkinBase<T extends ComboBoxBase> extends Ski
         positionAndShowPopup();
     }
 
+    /**
+     * Hides the popup if it is currently showing.
+     */
     public void hide() {
         if (popup != null && popup.isShowing()) {
             popup.hide();

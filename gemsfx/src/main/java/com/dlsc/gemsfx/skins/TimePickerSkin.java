@@ -19,6 +19,12 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import java.time.LocalTime;
 import java.util.Objects;
 
+/**
+ * Skin for {@link TimePicker}.
+ * <p>
+ * The skin builds the inline time fields, separator nodes, popup trigger
+ * button, and popup content used to select a time value.
+ */
 public class TimePickerSkin extends ToggleVisibilityComboBoxSkin<TimePicker> {
 
     private static final PseudoClass EMPTY_PSEUDO_CLASS = PseudoClass.getPseudoClass("empty");
@@ -39,6 +45,22 @@ public class TimePickerSkin extends ToggleVisibilityComboBoxSkin<TimePicker> {
     private final Region spacer;
     private final HBox box;
 
+    private final InvalidationListener buildViewListener = it -> buildView();
+    private final InvalidationListener updateFieldValuesListener = it -> updateFieldValues();
+    private final InvalidationListener updateFormatListener = it -> updateFormat();
+    private final InvalidationListener showingListener = it -> {
+        if (getSkinnable().isShowing()) {
+            show();
+        } else {
+            hide();
+        }
+    };
+
+    /**
+     * Creates a new skin for the given time picker.
+     *
+     * @param picker the time picker to skin
+     */
     public TimePickerSkin(TimePicker picker) {
         super(picker);
 
@@ -94,32 +116,34 @@ public class TimePickerSkin extends ToggleVisibilityComboBoxSkin<TimePicker> {
         millisecondField.focusedProperty().addListener(updateFocusListener);
         editButton.focusedProperty().addListener(updateFocusListener);
 
-        InvalidationListener buildViewListener = it -> buildView();
-
-        picker.hoursSeparatorProperty().addListener(buildViewListener);
-        picker.minutesSeparatorProperty().addListener(buildViewListener);
-        picker.secondsSeparatorProperty().addListener(buildViewListener);
+        register(picker.hoursSeparatorProperty(), buildViewListener);
+        register(picker.minutesSeparatorProperty(), buildViewListener);
+        register(picker.secondsSeparatorProperty(), buildViewListener);
         registerChangeListener(picker.buttonDisplayProperty(), it -> updateBox());
 
         buildView();
 
-        picker.timeProperty().addListener(it -> updateFieldValues());
+        register(picker.timeProperty(), updateFieldValuesListener);
         updateFieldValues();
 
-        picker.formatProperty().addListener(cl -> updateFormat());
+        register(picker.formatProperty(), updateFormatListener);
 
         updateEmptyPseudoClass();
         updateFormat();
 
-        picker.showingProperty().addListener(it -> {
-            if (picker.isShowing()) {
-                show();
-            } else {
-                hide();
-            }
-        });
+        register(picker.showingProperty(), showingListener);
 
         getChildren().add(box);
+    }
+
+    @Override
+    protected double computePrefWidth(double height, double topInset, double rightInset, double bottomInset, double leftInset) {
+        return box.prefWidth(height) + leftInset + rightInset;
+    }
+
+    @Override
+    protected double computePrefHeight(double width, double topInset, double rightInset, double bottomInset, double leftInset) {
+        return box.prefHeight(width) + topInset + bottomInset;
     }
 
     private void updateFormat() {

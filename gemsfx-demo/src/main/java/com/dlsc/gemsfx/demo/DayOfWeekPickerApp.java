@@ -2,7 +2,7 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.DayOfWeekPicker;
 import com.dlsc.gemsfx.demo.fake.SimpleControlPane;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -15,28 +15,35 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class DayOfWeekPickerApp extends Application {
+public class DayOfWeekPickerApp extends GemApplication {
 
     private final DayOfWeekPicker dayOfWeekPicker = new DayOfWeekPicker();
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
 
         dayOfWeekPicker.prefWidthProperty().bind(dayOfWeekPicker.getSelectionModel().selectionModeProperty().map(sm -> sm == SelectionMode.SINGLE ? 135 : 160));
         StackPane wrapper = new StackPane(dayOfWeekPicker);
-        wrapper.setStyle("-fx-padding: 30px; -fx-background-color: white;");
+        if (Boolean.getBoolean("atlantafx")) {
+            wrapper.setStyle("-fx-padding: 30px; -fx-background-color: -color-bg-default;");
+        } else {
+            wrapper.setStyle("-fx-padding: 30px; -fx-background-color: white;");
+        }
 
         SplitPane splitPane = new SplitPane(wrapper,getControlPanel());
         splitPane.setDividerPositions(0.68);
 
         primaryStage.setScene(new Scene(splitPane, 800, 600));
-        primaryStage.setTitle("Hello DayOfWeekPicker");
+        primaryStage.setTitle("DayOfWeekPicker");
+
         primaryStage.show();
     }
 
     public Node getControlPanel() {
         ComboBox<SelectionMode> selectionModeComboBox = new ComboBox<>();
         selectionModeComboBox.getItems().addAll(SelectionMode.values());
+        selectionModeComboBox.setConverter(new EnumStringConverter<>());
         selectionModeComboBox.valueProperty().bindBidirectional(dayOfWeekPicker.getSelectionModel().selectionModeProperty());
 
         CheckBox autoHideOnSelection = new CheckBox("Hide On Selection");
@@ -63,4 +70,5 @@ public class DayOfWeekPickerApp extends Application {
                 new SimpleControlPane.ControlItem("Test Select", selectionButtons)
         );
     }
+
 }

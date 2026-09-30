@@ -10,6 +10,8 @@ import javafx.scene.control.skin.VirtualFlow;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -17,6 +19,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * vertical scrolling in sync.
  */
 public class VirtualFlowUtil {
+
+    private static final Logger LOG = Logger.getLogger(VirtualFlowUtil.class.getName());
+
+    /**
+     * Creates a virtual-flow utility instance.
+     */
+    public VirtualFlowUtil() {
+    }
 
     /**
      * Bind the virtual flows found somewhere inside the two given controls to each other
@@ -100,7 +110,7 @@ public class VirtualFlowUtil {
     }
 
     private static void updatePosition(VirtualFlow<?> fromFlow, VirtualFlow<?> toFlow) {
-        var pos2 = getVFlowPosition(fromFlow);
+        VirtualFlowPosition pos2 = getVFlowPosition(fromFlow);
         setVFlowPosition(toFlow, pos2);
     }
 
@@ -121,7 +131,7 @@ public class VirtualFlowUtil {
             flow.layout();
             flow.scrollPixels(pos.offset);
         } catch (Throwable e) {
-            e.printStackTrace();
+            LOG.log(Level.WARNING, "Failed to restore virtual flow position", e);
         }
     }
 
@@ -130,16 +140,33 @@ public class VirtualFlowUtil {
         private int index;
         private double offset;
 
+        /**
+         * Creates a new virtual flow position.
+         *
+         * @param index the first visible cell index
+         * @param offset the pixel offset within the cell
+         */
         public VirtualFlowPosition(int index, double offset) {
             this.index = index;
             this.offset = offset;
         }
 
+        /**
+         * Returns a string representation of this position.
+         *
+         * @return the string representation
+         */
         @Override
         public String toString() {
             return "VBosPosition{" + "index=" + index + ", offset=" + offset + '}';
         }
 
+        /**
+         * Compares this position with another object.
+         *
+         * @param o the object to compare with
+         * @return {@code true} if the objects are equal
+         */
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -154,6 +181,11 @@ public class VirtualFlowUtil {
             return index == that.index && Double.compare(that.offset, offset) == 0;
         }
 
+        /**
+         * Returns the hash code of this position.
+         *
+         * @return the hash code
+         */
         @Override
         public int hashCode() {
             return Objects.hash(index, offset);

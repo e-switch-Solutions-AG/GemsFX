@@ -5,15 +5,16 @@ import com.dlsc.gemsfx.CalendarView.SelectionModel;
 import com.dlsc.gemsfx.daterange.DateRange;
 import com.dlsc.gemsfx.daterange.DateRangePreset;
 import com.dlsc.gemsfx.daterange.DateRangeView;
-import javafx.beans.Observable;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
-import javafx.scene.control.SkinBase;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -24,7 +25,14 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Objects;
 
-public class DateRangeViewSkin extends SkinBase<DateRangeView> {
+/**
+ * Skin for the {@link DateRangeView} control.
+ * <p>
+ * The skin arranges two {@link CalendarView} instances for selecting start and
+ * end dates, displays optional presets, and provides optional apply and cancel
+ * buttons.
+ */
+public class DateRangeViewSkin extends GemsSkinBase<DateRangeView> {
 
     private final CalendarView startCalendarView;
     private final CalendarView endCalendarView;
@@ -37,6 +45,16 @@ public class DateRangeViewSkin extends SkinBase<DateRangeView> {
     private final Label toLabel;
     private boolean updatingMonths;
 
+    private final ChangeListener<DateRange> valueChangeListener = (obs, oldRange, newRange) -> applyRangeToMonthViews(newRange);
+    private final ListChangeListener<DateRangePreset> presetsChangeListener = it -> updatePresetsView();
+    private final InvalidationListener orientationChangeListener = it -> updateCalendarLayout();
+    private final InvalidationListener presetsLocationChangeListener = it -> updateLayout();
+
+    /**
+     * Creates a skin for the given date range view.
+     *
+     * @param view the date range view rendered by this skin
+     */
     public DateRangeViewSkin(DateRangeView view) {
         super(view);
 
@@ -94,7 +112,7 @@ public class DateRangeViewSkin extends SkinBase<DateRangeView> {
             if (!selectionModel.getSelectedDates().isEmpty() && !endCalendarView.getSelectionModel().getSelectedDates().isEmpty()) {
                 LocalDate st = selectionModel.getSelectedDate();
                 LocalDate et = selectionModel.getSelectedEndDate();
-                return et.isBefore(st);
+                return st != null && et != null && et.isBefore(st);
             }
             return false;
         }, selectionModel.getSelectedDates(), endCalendarView.getSelectionModel().getSelectedDates()));
@@ -149,18 +167,11 @@ public class DateRangeViewSkin extends SkinBase<DateRangeView> {
         HBox.setHgrow(endCalendarView, Priority.ALWAYS);
         HBox.setHgrow(presetsBox, Priority.ALWAYS);
 
-        view.valueProperty().addListener((obs, oldRange, newRange) -> {
-            if (newRange != null) {
-                // the start and end dates can be visible in both month views
-                applyRangeToMonthViews(newRange);
-            } else {
-                view.setValue(oldRange);
-            }
-        });
+        register(view.valueProperty(), valueChangeListener);
 
-        view.getPresets().addListener((Observable it) -> updatePresetsView());
-        view.orientationProperty().addListener(it -> updateCalendarLayout());
-        view.presetsLocationProperty().addListener(it -> updateLayout());
+        register(view.getPresets(), presetsChangeListener);
+        register(view.orientationProperty(), orientationChangeListener);
+        register(view.presetsLocationProperty(), presetsLocationChangeListener);
 
         getChildren().add(container);
 
@@ -181,7 +192,7 @@ public class DateRangeViewSkin extends SkinBase<DateRangeView> {
     }
 
     private void updateCalendarLayout() {
-        DateRangeView view  = getSkinnable();
+        DateRangeView view = getSkinnable();
 
         if (view.getOrientation().equals(Orientation.HORIZONTAL)) {
             HBox monthsBox = new HBox(startCalendarView, endCalendarView);
@@ -230,6 +241,8 @@ public class DateRangeViewSkin extends SkinBase<DateRangeView> {
             DateRangePreset rangePreset = presets.get(i);
             Label l = new Label(rangePreset.getTitle());
             l.getStyleClass().add("preset-name-label");
+
+            // only apply range to month view, do not update the value object (user will need to commit to it)
             l.setOnMouseClicked(evt -> applyRangeToMonthViews(rangePreset.getDateRangeSupplier().get()));
             presetsBox.getChildren().add(l);
 

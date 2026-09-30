@@ -9,7 +9,6 @@ import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.control.SkinBase;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -24,7 +23,13 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.time.YearMonth;
 
-public class YearMonthViewSkin extends SkinBase<YearMonthView> {
+/**
+ * Skin for {@link YearMonthView}.
+ * <p>
+ * The skin builds a header for changing the displayed year and a two-column
+ * grid of month boxes with selected and current month pseudo classes.
+ */
+public class YearMonthViewSkin extends GemsSkinBase<YearMonthView> {
 
     private static final PseudoClass SELECTED_MONTH_PSEUDO_CLASS = PseudoClass.getPseudoClass("selected");
     private static final PseudoClass CURRENT_MONTH_PSEUDO_CLASS = PseudoClass.getPseudoClass("current");
@@ -32,6 +37,11 @@ public class YearMonthViewSkin extends SkinBase<YearMonthView> {
     private final ObjectProperty<Integer> year = new SimpleObjectProperty<>(this, "year");
     private boolean updatingMonthBox;
 
+    /**
+     * Creates a new skin for the given year-month view.
+     *
+     * @param control the year-month view to skin
+     */
     public YearMonthViewSkin(YearMonthView control) {
         super(control);
 
@@ -52,10 +62,18 @@ public class YearMonthViewSkin extends SkinBase<YearMonthView> {
         StackPane leftArrowButton = new StackPane(leftArrow);
         leftArrowButton.getStyleClass().addAll("arrow-button", "left-button");
         leftArrowButton.setOnMouseClicked(evt -> year.set(year.get() - 1));
+        leftArrowButton.disableProperty().bind(Bindings.createObjectBinding(() -> {
+            YearMonth earliestMonth = control.getEarliestMonth();
+            return earliestMonth != null && year.get() <= earliestMonth.getYear();
+        }, year, control.earliestMonthProperty()));
 
         StackPane rightArrowButton = new StackPane(rightArrow);
         rightArrowButton.getStyleClass().addAll("arrow-button", "right-button");
         rightArrowButton.setOnMouseClicked(evt -> year.set(year.get() + 1));
+        rightArrowButton.disableProperty().bind(Bindings.createObjectBinding(() -> {
+            YearMonth latestMonth = control.getLatestMonth();
+            return latestMonth != null && year.get() >= latestMonth.getYear();
+        }, year, control.latestMonthProperty()));
 
         HBox header = new HBox(leftArrowButton, yearLabel, rightArrowButton);
         header.getStyleClass().add("header");
@@ -106,12 +124,18 @@ public class YearMonthViewSkin extends SkinBase<YearMonthView> {
 
         getChildren().add(container);
 
-        control.valueProperty().subscribe(value -> {
-            updatingMonthBox = true;
-            year.set(value.getYear());
-            updateMonthBoxes(value, gridPane);
-            updatingMonthBox = false;
+        register(control.valueProperty(), (obs, oldValue, value) -> {
+            if (value != null) {
+                updatingMonthBox = true;
+                year.set(value.getYear());
+                updateMonthBoxes(value, gridPane);
+                updatingMonthBox = false;
+            }
         });
+        if (control.getValue() != null) {
+            year.set(control.getValue().getYear());
+            updateMonthBoxes(control.getValue(), gridPane);
+        }
 
         year.addListener(it -> {
             if (!updatingMonthBox) {
@@ -172,12 +196,12 @@ public class YearMonthViewSkin extends SkinBase<YearMonthView> {
             setOnMouseClicked(evt -> view.setValue(YearMonth.of(year.get(), month.getValue())));
             disableProperty().bind(Bindings.createObjectBinding(() -> {
                 YearMonth earliestMonth = view.getEarliestMonth();
-                if (earliestMonth != null && YearMonth.of(view.getValue().getYear(), month.getValue()).isBefore(earliestMonth)) {
+                if (earliestMonth != null && YearMonth.of(year.get(), month.getValue()).isBefore(earliestMonth)) {
                     return true;
                 }
                 YearMonth latestMonth = view.getLatestMonth();
-                return latestMonth != null && YearMonth.of(view.getValue().getYear(), month.getValue()).isAfter(latestMonth);
-            }, view.earliestMonthProperty(), view.latestMonthProperty(), view.valueProperty()));
+                return latestMonth != null && YearMonth.of(year.get(), month.getValue()).isAfter(latestMonth);
+            }, view.earliestMonthProperty(), view.latestMonthProperty(), year));
         }
 
         public final Month getMonth() {

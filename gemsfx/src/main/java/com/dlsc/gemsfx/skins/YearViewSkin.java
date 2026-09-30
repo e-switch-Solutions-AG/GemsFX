@@ -7,7 +7,6 @@ import javafx.event.Event;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.SkinBase;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -23,7 +22,13 @@ import java.time.LocalDate;
 import java.time.Year;
 import java.util.Optional;
 
-public class YearViewSkin extends SkinBase<YearView> {
+/**
+ * Skin for {@link YearView}.
+ * <p>
+ * The skin builds a header showing the current year range and a configurable
+ * grid of year nodes with selected and current year styling.
+ */
+public class YearViewSkin extends GemsSkinBase<YearView> {
 
     private final Label yearRangeLabel;
     private final HBox header;
@@ -31,6 +36,11 @@ public class YearViewSkin extends SkinBase<YearView> {
 
     private int offset = 0;
 
+    /**
+     * Creates a new skin for the given year view.
+     *
+     * @param yearView the year view to skin
+     */
     public YearViewSkin(YearView yearView) {
         super(yearView);
 
@@ -73,30 +83,17 @@ public class YearViewSkin extends SkinBase<YearView> {
         gridPane = new GridPane();
         gridPane.getStyleClass().add("grid-pane");
 
-        for (int i = 0; i < 4; i++) {
-            ColumnConstraints col1 = new ColumnConstraints();
-            col1.setPercentWidth(25);
-            gridPane.getColumnConstraints().add(col1);
-        }
-
-        int numberOfRows = 5;
-        for (int i = 0; i < numberOfRows; i++) {
-            RowConstraints row = new RowConstraints();
-            row.setPercentHeight(100d / numberOfRows);
-            gridPane.getRowConstraints().add(row);
-        }
-
         getChildren().addAll(header, gridPane);
 
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(yearView.widthProperty());
         clip.heightProperty().bind(yearView.heightProperty());
-        yearView.setClip(clip);
+        header.setClip(clip);
 
         InvalidationListener buildGridListener = obs -> buildGrid();
-        yearView.valueProperty().addListener(buildGridListener);
-        yearView.rowsProperty().addListener(buildGridListener);
-        yearView.colsProperty().addListener(buildGridListener);
+        register(yearView.valueProperty(), buildGridListener);
+        register(yearView.rowsProperty(), buildGridListener);
+        register(yearView.colsProperty(), buildGridListener);
 
         buildGrid();
     }
@@ -108,11 +105,32 @@ public class YearViewSkin extends SkinBase<YearView> {
         gridPane.resizeRelocate(contentX, contentY + headerHeight, contentWidth, contentHeight - headerHeight);
     }
 
+    private void updateGridConstraints() {
+        gridPane.getColumnConstraints().clear();
+        gridPane.getRowConstraints().clear();
+
+        int cols = Math.max(1, getSkinnable().getCols());
+        int rows = Math.max(1, getSkinnable().getRows());
+
+        for (int i = 0; i < cols; i++) {
+            ColumnConstraints col = new ColumnConstraints();
+            col.setPercentWidth(100d / cols);
+            gridPane.getColumnConstraints().add(col);
+        }
+
+        for (int i = 0; i < rows; i++) {
+            RowConstraints row = new RowConstraints();
+            row.setPercentHeight(100d / rows);
+            gridPane.getRowConstraints().add(row);
+        }
+    }
+
     private void buildGrid() {
+        updateGridConstraints();
         YearView yearView = getSkinnable();
 
-        int rows = yearView.getRows();
-        int cols = yearView.getCols();
+        int cols = Math.max(1, getSkinnable().getCols());
+        int rows = Math.max(1, getSkinnable().getRows());
 
         final int visibleYears = rows * cols;
 

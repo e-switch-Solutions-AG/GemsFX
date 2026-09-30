@@ -2,104 +2,160 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.SelectionBox;
 import com.dlsc.gemsfx.demo.fake.SimpleControlPane;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.SimpleStringConverter;
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 
-import java.util.List;
-
-public class SelectionBoxApp extends Application {
+public class SelectionBoxApp extends GemApplication {
 
     private final SelectionBox<String> selectionBox = new SelectionBox<>();
+    private final StackPane topNode = new StackPane();
+    private final StackPane bottomNode = new StackPane();
+    private final StackPane leftNode = new StackPane();
+    private final StackPane rightNode = new StackPane();
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
+        selectionBox.setOnShowing(evt -> System.out.println("On popup showing"));
+        selectionBox.setOnShown(evt -> System.out.println("On popup shown"));
+
+        selectionBox.setOnHiding(evt -> System.out.println("On popup hiding"));
+        selectionBox.setOnHidden(evt -> System.out.println("On popup hidden"));
+
+        selectionBox.show();
+
+        topNode.getChildren().add(new Label("Top"));
+        bottomNode.getChildren().add(new Label("Bottom"));
+        leftNode.getChildren().add(new Label("Left"));
+        rightNode.getChildren().add(new Label("Right"));
+
+        if (Boolean.getBoolean("atlantafx")) {
+            topNode.setStyle("-fx-background-color: -color-accent-emphasis;-fx-padding: 10;");
+            bottomNode.setStyle("-fx-background-color: -color-danger-emphasis;-fx-padding: 10;");
+            leftNode.setStyle("-fx-background-color: -color-warning-emphasis;-fx-padding: 10;");
+            rightNode.setStyle("-fx-background-color: -color-success-emphasis;-fx-padding: 10;");
+        } else {
+            topNode.setStyle("-fx-background-color: lightblue;-fx-padding: 10;");
+            bottomNode.setStyle("-fx-background-color: lightcoral;-fx-padding: 10;");
+            leftNode.setStyle("-fx-background-color: lightgreen;-fx-padding: 10;");
+            rightNode.setStyle("-fx-background-color: lightyellow;-fx-padding: 10;");
+        }
+
         SplitPane splitPane = new SplitPane();
         splitPane.setDividerPositions(0.7);
+        if (Boolean.getBoolean("atlantafx")) {
+            splitPane.setStyle("-fx-background-color: -color-bg-default;");
+        }
         splitPane.getItems().addAll(createControl(), getControlPanel());
 
         primaryStage.setTitle("SelectionBox Demo");
         primaryStage.setScene(new Scene(splitPane, 860, 600));
-        primaryStage.show();
 
-        CSSFX.start();
+        primaryStage.show();
     }
 
     private Region createControl() {
         selectionBox.setPrefWidth(220);
         selectionBox.getItems().addAll("Item 1", "Item 2", "Item 3", "Option A", "Option B", "Option C", "Option D");
+        selectionBox.getSelectionModel().selectFirst();
         // selectionBox.setItemConverter(new SimpleStringConverter<>(s -> ">>" +s));
 
         StackPane wrapper = new StackPane(selectionBox);
-        wrapper.setStyle("-fx-background-color: white; -fx-padding: 50px;");
+        if (Boolean.getBoolean("atlantafx")) {
+            wrapper.setStyle("-fx-background-color: -color-bg-default; -fx-padding: 50px;");
+        } else {
+            wrapper.setStyle("-fx-background-color: white; -fx-padding: 50px;");
+        }
         return wrapper;
     }
 
     private Node getControlPanel() {
+        // show popup button
+        Button showButton = new Button("Show Popup");
+        showButton.setOnAction(e -> selectionBox.show());
+
         // selection mode
         ComboBox<SelectionMode> selectionModeComboBox = new ComboBox<>();
         selectionModeComboBox.getItems().addAll(SelectionMode.SINGLE, SelectionMode.MULTIPLE);
         selectionModeComboBox.valueProperty().bindBidirectional(selectionBox.getSelectionModel().selectionModeProperty());
 
-        // visible extra buttons
-        CheckBox visibleExtraButtonsCheckBox = new CheckBox("Show Extra Buttons");
-        visibleExtraButtonsCheckBox.selectedProperty().bindBidirectional(selectionBox.showExtraButtonsProperty());
+        // show extra nodes
+        CheckBox showExtraNodesCheckBox = new CheckBox("Show Extra Nodes");
+        // cache the top node
+        Node selectionBoxTop = selectionBox.getTop();
+        showExtraNodesCheckBox.selectedProperty().subscribe(showExtraNodes -> {
+            if (showExtraNodes) {
+                selectionBox.setTop(topNode);
+                selectionBox.setBottom(bottomNode);
+                selectionBox.setLeft(leftNode);
+                selectionBox.setRight(rightNode);
+            } else {
+                selectionBox.setTop(selectionBoxTop);
+                selectionBox.setBottom(null);
+                selectionBox.setLeft(null);
+                selectionBox.setRight(null);
+            }
+        });
 
-        // change extra buttons
-        Button changeExtraButtonsButton = new Button("Change Extra Buttons");
-        changeExtraButtonsButton.setMaxWidth(Double.MAX_VALUE);
-        changeExtraButtonsButton.setOnAction(e ->
-                selectionBox.setExtraButtonsProvider(model -> switch (model.getSelectionMode()) {
-                    case SINGLE -> List.of(
-                            selectionBox.createExtraButton("Select Previous", model::selectPrevious),
-                            selectionBox.createExtraButton("Select Next", model::selectNext)
-                    );
-                    case MULTIPLE -> List.of(
-                            selectionBox.createExtraButton("Select First", model::selectFirst),
-                            selectionBox.createExtraButton("Select Last", model::selectLast)
-                    );
-                })
-        );
+        // prompt text
+        CheckBox promptTextCheckBox = new CheckBox("Change Prompt Text");
+        promptTextCheckBox.setOnAction(evt -> {
+            selectionBox.getSelectionModel().clearSelection();
+            if (promptTextCheckBox.isSelected()) {
+                selectionBox.setPromptText("Select");
+            } else {
+                selectionBox.setPromptText("No Selection");
+            }
+        });
 
-        // extra buttons position
-        ComboBox<SelectionBox.VerticalPosition> extraButtonsPositionComboBox = new ComboBox<>();
-        extraButtonsPositionComboBox.getItems().addAll(SelectionBox.VerticalPosition.values());
-        extraButtonsPositionComboBox.valueProperty().bindBidirectional(selectionBox.extraButtonsPositionProperty());
+        // placeholder
+        CheckBox placeholderCheckBox = new CheckBox("Add a placeholder when no items");
+        placeholderCheckBox.setSelected(true);
+        selectionBox.placeholderProperty().bind(Bindings.createObjectBinding(() -> {
+            if (placeholderCheckBox.isSelected()) {
+                Label label = new Label("No items available");
+                label.setStyle("-fx-text-fill: #969696;");
+                StackPane stackPane = new StackPane(label);
+                stackPane.setStyle("-fx-background-color: #fcfcfc; -fx-padding: 20px;");
+                return stackPane;
+            } else {
+                return null;
+            }
+        }, placeholderCheckBox.selectedProperty()));
 
         // use custom string converter
         CheckBox useCustomStringConverterCheckBox = new CheckBox("Use Custom String Converter");
-        useCustomStringConverterCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal) {
-                selectionBox.setSelectedItemsConverter(new StringConverter<>() {
-                    @Override
-                    public String toString(List<String> object) {
-                        if (object == null || object.isEmpty()) {
-                            return "Empty";
+        useCustomStringConverterCheckBox.setSelected(true);
+        selectionBox.selectedItemsConverterProperty().bind(Bindings.createObjectBinding(() -> {
+                    if (useCustomStringConverterCheckBox.isSelected()) {
+                        // No need to consider the case where selectedItems is empty,
+                        // because if nothing is selected, promptText will be displayed.
+                        // You can always return the promptText as well, for example "Select" or "Please choose".
+                        // return "Please choose";  // or return selectionBox.getPromptText();
+                        if (selectionBox.getSelectionModel().getSelectionMode() == SelectionMode.SINGLE) {
+                            return new SimpleStringConverter<>(selectedItems -> "[ " + selectionBox.getSelectionModel().getSelectedItem() + " ]");
+                        } else {
+                            return new SimpleStringConverter<>(selectedItems -> selectedItems.size() + " items selected");
                         }
-                        return object.stream().map(s -> ">> " + s).reduce((s1, s2) -> s1 + ", " + s2).orElse("");
+                    } else {
+                        return null;
                     }
-
-                    @Override
-                    public List<String> fromString(String string) {
-                        return List.of();
-                    }
-                });
-            } else {
-                selectionBox.setSelectedItemsConverter(null);
-            }
-        });
+                },
+                useCustomStringConverterCheckBox.selectedProperty(), selectionBox.getSelectionModel().selectionModeProperty()));
 
         // auto hide on select
         CheckBox autoHideOnSelectCheckBox = new CheckBox("Auto Hide On Select");
@@ -202,12 +258,18 @@ public class SelectionBoxApp extends Application {
         itemsButtonsBox.setFillWidth(true);
         itemsButtonsBox.getChildren().addAll(changeItemsButton, replaceItemsButton, addItemsButton, removeItemsButton, clearItemsButton);
 
+        // animation enabled
+        CheckBox animationEnabledCheckBox = new CheckBox("Enable Animation");
+        animationEnabledCheckBox.selectedProperty().bindBidirectional(selectionBox.animationEnabledProperty());
+
         return new SimpleControlPane(
                 "SelectionBox",
+                new SimpleControlPane.ControlItem("Show Popup", showButton),
                 new SimpleControlPane.ControlItem("Selection Mode", selectionModeComboBox),
-                new SimpleControlPane.ControlItem("Show Extra Buttons", visibleExtraButtonsCheckBox),
-                new SimpleControlPane.ControlItem("Change Extra Buttons", changeExtraButtonsButton),
-                new SimpleControlPane.ControlItem("Extra Buttons Position", extraButtonsPositionComboBox),
+                new SimpleControlPane.ControlItem("Show Extra Nodes", showExtraNodesCheckBox),
+                new SimpleControlPane.ControlItem("Show Placeholder", placeholderCheckBox),
+                new SimpleControlPane.ControlItem("Enable Animation", animationEnabledCheckBox),
+                new SimpleControlPane.ControlItem("Change Prompt Text", promptTextCheckBox),
                 new SimpleControlPane.ControlItem("Use Custom String Converter", useCustomStringConverterCheckBox),
                 new SimpleControlPane.ControlItem("Auto Hide On Select", autoHideOnSelectCheckBox),
                 new SimpleControlPane.ControlItem("Select Method", selectTestButtonsBox),

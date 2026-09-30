@@ -1,14 +1,19 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.TagsFieldSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.application.Platform;
 import javafx.beans.Observable;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Orientation;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.MultipleSelectionModel;
@@ -17,9 +22,16 @@ import javafx.scene.control.Skin;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Deque;
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -28,7 +40,7 @@ import java.util.stream.Collectors;
  * of the text input field. The control provides an observable list of the currently
  * added tags. In addition, the field also allows the user to select one or more of
  * the tags. The selection state is provided by the selection model. The field adds
- * and removes tags via undoable commands which means that, for example, a deleted tag
+ * and removes tags via undoable commands, which means that, for example, a deleted tag
  * can be recovered by pressing the standard undo (or redo) shortcut.
  *
  * @param <T> the type of objects to search for and to tag
@@ -48,8 +60,10 @@ public class TagsField<T> extends SearchField<T> {
      */
     public TagsField() {
         getStyleClass().addAll("text-input", DEFAULT_STYLE_CLASS);
+        AccessibilityUtil.setRole(this, AccessibleRole.COMBO_BOX);
 
         setFocusTraversable(false);
+        setGraphic(null); // remove the history button
 
         getEditor().focusedProperty().addListener(it -> {
             if (getEditor().isFocused()) {
@@ -58,8 +72,17 @@ public class TagsField<T> extends SearchField<T> {
         });
 
         setTagViewFactory(tag -> {
+            Region closeIcon = new Region();
+            closeIcon.getStyleClass().add("close");
+
+            StackPane closeIconWrapper = new StackPane(closeIcon);
+            closeIconWrapper.getStyleClass().add("close-icon");
+            closeIconWrapper.setOnMouseClicked(evt -> getTags().remove(tag));
+
             Label tagLabel = new Label();
             tagLabel.setText(getConverter().toString(tag));
+            tagLabel.setGraphic(closeIconWrapper);
+
             return tagLabel;
         });
 
@@ -80,6 +103,7 @@ public class TagsField<T> extends SearchField<T> {
         addEventFilter(KeyEvent.KEY_PRESSED, evt -> {
             MultipleSelectionModel<T> tagSelectionModel = getTagSelectionModel();
             if (evt.getCode().equals(KeyCode.BACK_SPACE)) {
+                setSelectedItem(null); // otherwise a focus-lost will recreate the tag if "on-the-fly" creation is enabled
                 if (!tagSelectionModel.isEmpty()) {
                     removeTags((T[]) tagSelectionModel.getSelectedItems().toArray());
                 } else if (getText().isEmpty() && !getTags().isEmpty()) {
@@ -93,6 +117,34 @@ public class TagsField<T> extends SearchField<T> {
                 tagSelectionModel.selectAll();
             } else if (evt.getCode().equals(KeyCode.ESCAPE)) {
                 tagSelectionModel.clearSelection();
+            } else if (evt.getCode().equals(KeyCode.LEFT) && getEditor().getCaretPosition() == 0) {
+                if (!getTags().isEmpty()) {
+                    MultipleSelectionModel<T> selectionModel = getTagSelectionModel();
+                    if (selectionModel.isEmpty()) {
+                        selectionModel.select(getTags().size() - 1);
+                    } else {
+                        int index = selectionModel.getSelectedIndex();
+                        if (!evt.isShiftDown()) {
+                            selectionModel.clearSelection();
+                        }
+                        selectionModel.select(Math.max(0, index - 1));
+                    }
+                }
+            } else if (evt.getCode().equals(KeyCode.RIGHT) && getEditor().getCaretPosition() == 0) {
+                MultipleSelectionModel<T> selectionModel = getTagSelectionModel();
+                if (!selectionModel.isEmpty()) {
+                    int selectedIndex = selectionModel.getSelectedIndex();
+                    if (evt.isShiftDown()) {
+                        selectionModel.select(Math.min(getTags().size() - 1, selectedIndex + 1));
+                    } else {
+                        selectionModel.clearSelection();
+                        if (selectedIndex < getTags().size() - 1) {
+                            selectionModel.select(selectedIndex + 1);
+                        } else {
+                            selectionModel.clearSelection();
+                        }
+                    }
+                }
             }
         });
 
@@ -107,6 +159,11 @@ public class TagsField<T> extends SearchField<T> {
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(TagsField.class.getResource("tags-field.css")).toExternalForm();
+    }
+
+    @Override
+    public Orientation getContentBias() {
+        return Orientation.HORIZONTAL;
     }
 
     /**
@@ -321,6 +378,44 @@ public class TagsField<T> extends SearchField<T> {
             cmd.execute();
             undoStack.push(cmd);
         }
+    }
+
+    private final DoubleProperty editorMinWidth = new SimpleDoubleProperty(this, "editorMinWidth", 20);
+
+    public final double getEditorMinWidth() {
+        return editorMinWidth.get();
+    }
+
+    /**
+     * The minimum width of the editor when it is not used.
+     *
+     * @return the minimum width of the editor
+     */
+    public final DoubleProperty editorMinWidthProperty() {
+        return editorMinWidth;
+    }
+
+    public final void setEditorMinWidth(double editorMinWidth) {
+        this.editorMinWidth.set(editorMinWidth);
+    }
+
+    private final DoubleProperty editorPrefWidth = new SimpleDoubleProperty(this, "editorPrefWidth", 200);
+
+    public final double getEditorPrefWidth() {
+        return editorPrefWidth.get();
+    }
+
+    /**
+     * The preferred width of the editor when it is being used.
+     *
+     * @return the preferred width of the editor
+     */
+    public final DoubleProperty editorPrefWidthProperty() {
+        return editorPrefWidth;
+    }
+
+    public final void setEditorPrefWidth(double editorPrefWidth) {
+        this.editorPrefWidth.set(editorPrefWidth);
     }
 
     class TagFieldSelectionModel extends MultipleSelectionModel<T> {

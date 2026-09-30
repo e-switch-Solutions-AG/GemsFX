@@ -1,9 +1,8 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.LimitedTextArea;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import com.dlsc.gemsfx.util.IntegerRange;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -20,12 +19,13 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class LimitedTextAreaApp extends Application {
+public class LimitedTextAreaApp extends GemApplication {
 
     private final LimitedTextArea textArea = new LimitedTextArea();
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
 
         //init the text area
         textArea.setWrapText(true);
@@ -33,8 +33,13 @@ public class LimitedTextAreaApp extends Application {
         textArea.setCharacterRangeLimit(new IntegerRange(0, 30));
         textArea.setPrefHeight(380);
 
-        StackPane wrapper = new StackPane(new VBox(textArea));
+        VBox vBox = new VBox(textArea);
+
+        StackPane wrapper = new StackPane(vBox);
         wrapper.setPadding(new Insets(20));
+        if (Boolean.getBoolean("atlantafx")) {
+            wrapper.setStyle("-fx-background-color: -color-bg-default;");
+        }
 
         SplitPane splitPane = new SplitPane();
         splitPane.setDividerPositions(0.75);
@@ -42,9 +47,9 @@ public class LimitedTextAreaApp extends Application {
 
         Scene scene = new Scene(splitPane, 560, 420);
         primaryStage.setScene(scene);
-        primaryStage.setTitle("LimitedTextArea Demo");
+        primaryStage.setTitle("Limited Text Area Demo");
+
         primaryStage.show();
-        CSSFX.start();
     }
 
     private VBox getControlPanel() {
@@ -52,6 +57,7 @@ public class LimitedTextAreaApp extends Application {
         ComboBox<LimitedTextArea.LengthDisplayMode> lengthDisplayModeComboBox = new ComboBox<>();
         lengthDisplayModeComboBox.setPrefWidth(Double.MAX_VALUE);
         lengthDisplayModeComboBox.getItems().addAll(LimitedTextArea.LengthDisplayMode.values());
+        lengthDisplayModeComboBox.setConverter(new EnumStringConverter<>());
         lengthDisplayModeComboBox.setValue(LimitedTextArea.LengthDisplayMode.ALWAYS_SHOW);
         textArea.lengthDisplayModeProperty().bind(lengthDisplayModeComboBox.valueProperty());
 
@@ -63,7 +69,7 @@ public class LimitedTextAreaApp extends Application {
         Spinner<Integer> minLengthField = new Spinner<>(0, 30, 0, 10);
 
         Label maxLength = new Label("Max Length");
-        Spinner<Integer> maxLengthField = new Spinner<>(30, 200, 30, 10);
+        Spinner<Integer> maxLengthField = new Spinner<>(30, 20000, 30, 10);
         textArea.characterRangeLimitProperty().bind(Bindings.createObjectBinding(
                 () -> new IntegerRange(minLengthField.getValue(), maxLengthField.getValue())
                 , maxLengthField.valueProperty(), minLengthField.valueProperty()));
@@ -108,8 +114,13 @@ public class LimitedTextAreaApp extends Application {
         excludedItemsView.setPrefWidth(160);
         Bindings.bindContent(textArea.getExcludedItems(), excludedItemsView.getSelectionModel().getSelectedItems());
 
-        return new VBox(10, lengthDisplayMode, lengthDisplayModeComboBox, warningThreshold, warningThresholdSlider,
+        VBox box = new VBox(10, lengthDisplayMode, lengthDisplayModeComboBox, warningThreshold, warningThresholdSlider,
                 minLength, minLengthField, maxLength, maxLengthField, showBottomCheckBox, excludedItems, excludedItemsView);
+        box.setPadding(new Insets(10));
+        if (Boolean.getBoolean("atlantafx")) {
+            box.setStyle("-fx-background-color: -color-bg-default;");
+        }
+        return box;
     }
 
     public static void main(String[] args) {

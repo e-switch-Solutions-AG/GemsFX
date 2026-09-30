@@ -1,34 +1,48 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.SelectionBoxSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import com.dlsc.gemsfx.util.CustomMultipleSelectionModel;
+import javafx.beans.InvalidationListener;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ObjectPropertyBase;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.css.CssMetaData;
 import javafx.css.StyleConverter;
 import javafx.css.Styleable;
 import javafx.css.StyleableBooleanProperty;
-import javafx.css.StyleableObjectProperty;
 import javafx.css.StyleableProperty;
+import javafx.event.EventHandler;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Control;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Skin;
-import javafx.util.Callback;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * <p>
@@ -42,46 +56,116 @@ import java.util.Objects;
  * Additionally, {@code SelectionBox} offers the ability to add extra buttons, enabling users to perform
  * common selection actions swiftly, such as selecting all items, clearing selections, or applying predefined selection criteria.
  * </p>
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-animation-enabled}</td><td>{@code Boolean}</td><td>Whether animation is enabled.</td></tr>
+ *     <tr><td>{@code -fx-read-only}</td><td>{@code Boolean}</td><td>Whether the box is in read-only mode.</td></tr>
+ *   </tbody>
+ * </table>
+ *
+ * @param <T> the type of items displayed by the selection box
  */
 public class SelectionBox<T> extends Control {
 
     private static final String DEFAULT_STYLE_CLASS = "selection-box";
     private static final boolean DEFAULT_READ_ONLY = false;
-    private static final boolean DEFAULT_SHOW_EXTRA_BUTTON = true;
-    private static final VerticalPosition DEFAULT_EXTRA_BUTTON_POSITION = VerticalPosition.TOP;
+    private static final boolean DEFAULT_ANIMATION_ENABLED = false;
 
     /**
-     * The VerticalPosition enum represents the vertical position options available within a SelectionBox component.
-     * It can be used to specify the position of additional extra buttons, relative to the main items in the SelectionBox.
-     * The available positions are:
-     * <p>
-     * - TOP: Indicates that the extra buttons should be positioned above the main items.
-     * - BOTTOM: Indicates that the extra buttons should be positioned below the main items.
+     * Constructs a new SelectionBox instance. This custom control extends functionality to allow
+     * for enhanced selection capabilities with predefined style classes and quick selection buttons.
+     *
+     * The constructor performs the following operations:
+     * - Sets style classes for the control, including "combo-box-base," "combo-box," and the default style class.
+     * - Adds customizable quick selection buttons to the top of the popup area.
+     * - Binds the current selection mode to an internal selection mode property.
+     * - Initializes a custom multiple selection model, binding it to the items property.
+     * - Configures the component's size to use its preferred size as both minimum and maximum size.
      */
-    public enum VerticalPosition {
-        TOP, BOTTOM
-    }
-
     public SelectionBox() {
         getStyleClass().setAll("combo-box-base", "combo-box", DEFAULT_STYLE_CLASS);
+        AccessibilityUtil.setRole(this, AccessibleRole.COMBO_BOX);
+
+        // Add quick selection buttons to the top of the popup
+        setTop(createExtraButtonsBox());
+
+        currentSelectionMode.bind(getCurrentSelectionModeBinding());
 
         // initialize the selection model
         CustomMultipleSelectionModel<T> model = new CustomMultipleSelectionModel<>();
         model.itemsProperty().bind(itemsProperty());
         setSelectionModel(model);
+        AccessibilityUtil.bindAccessibleText(this, Bindings.createStringBinding(this::getAccessibleSelectionText,
+                model.selectedItemProperty(), model.getSelectedItems(), model.selectionModeProperty(), selectedItemsConverterProperty(), itemConverterProperty(), promptTextProperty()));
 
-        // initialize the extra buttons provider
-        setExtraButtonsProvider(selectionModel -> {
-            SelectionMode mode = selectionModel.getSelectionMode();
-            if (mode == SelectionMode.SINGLE) {
-                return List.of(createExtraButton("Clear", selectionModel::clearSelection));
-            } else {
-                return List.of(
-                        createExtraButton("Select All", selectionModel::selectAll),
-                        createExtraButton("Clear", selectionModel::clearSelection)
-                );
-            }
-        });
+        setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+    }
+
+    /**
+     * Constructs a new selection box with the specified collection of items.
+     *
+     * @param items the collection of items to populate the SelectionBox
+     */
+    public SelectionBox(Collection<T> items) {
+        this();
+        getItems().setAll(items);
+    }
+
+    /**
+     * Constructs a new selection box and populates it with the provided items.
+     *
+     * @param items The initial items to populate the selection box.
+     *              These items will be added to the selection box's list of choices.
+     */
+    @SafeVarargs
+    public SelectionBox(T... items) {
+        this();
+        getItems().setAll(items);
+    }
+
+    private String getAccessibleSelectionText() {
+        SelectionMode mode = getSelectionModel().getSelectionMode();
+        List<T> selectedItems = mode == SelectionMode.MULTIPLE
+                ? new ArrayList<>(getSelectionModel().getSelectedItems())
+                : getSelectionModel().getSelectedItem() == null ? Collections.emptyList() : Collections.singletonList(getSelectionModel().getSelectedItem());
+
+        if (selectedItems.isEmpty()) {
+            return getPromptText();
+        }
+
+        StringConverter<List<T>> selectedItemsConverter = getSelectedItemsConverter();
+        if (selectedItemsConverter != null) {
+            return selectedItemsConverter.toString(selectedItems);
+        }
+
+        StringConverter<T> itemConverter = getItemConverter();
+        List<String> elements = new ArrayList<>();
+        for (T item : selectedItems) {
+            elements.add(itemConverter == null ? String.valueOf(item) : itemConverter.toString(item));
+        }
+        return String.join(", ", elements);
+    }
+
+    private Node createExtraButtonsBox() {
+        Button clearButton = createExtraButton(ResourceBundleManager.getString(ResourceBundleManager.BundleType.SELECTION_BOX, "action.clear", "Clear"), () -> getSelectionModel().clearSelection());
+        clearButton.getStyleClass().add("clear-button");
+
+        Button selectAllButton = createExtraButton(ResourceBundleManager.getString(ResourceBundleManager.BundleType.SELECTION_BOX, "action.select-all", "Select All"), () -> getSelectionModel().selectAll());
+        selectAllButton.managedProperty().bind(selectAllButton.visibleProperty());
+        selectAllButton.visibleProperty().bind(currentSelectionModeProperty().isEqualTo(SelectionMode.MULTIPLE));
+        selectAllButton.getStyleClass().add("select-all-button");
+
+        VBox extraButtonsBox = new VBox(clearButton, selectAllButton);
+        extraButtonsBox.getStyleClass().addAll("extra-buttons-box");
+        extraButtonsBox.managedProperty().bind(extraButtonsBox.visibleProperty());
+        extraButtonsBox.visibleProperty().bind(itemsProperty().emptyProperty().not());
+
+        return extraButtonsBox;
     }
 
     @Override
@@ -129,26 +213,109 @@ public class SelectionBox<T> extends Control {
         return itemsProperty().get();
     }
 
-    // extraButtonsProvider
+    // top
 
-    private final ObjectProperty<Callback<MultipleSelectionModel<T>, List<Button>>> extraButtonsProvider = new SimpleObjectProperty<>(this, "extraButtonsProvider");
+    private final ObjectProperty<Node> top = new SimpleObjectProperty<>(this, "top");
 
     /**
-     * A callback that provides a list of extra buttons based on the selection mode.
-     * The callback is invoked when the control needs to display extra buttons.
+     * A node displayed at the top of the popup content.
      *
-     * @return the extra buttons provider property
+     * @return the top node property
      */
-    public final ObjectProperty<Callback<MultipleSelectionModel<T>, List<Button>>> extraButtonsProviderProperty() {
-        return extraButtonsProvider;
+    public final ObjectProperty<Node> topProperty() {
+        return top;
     }
 
-    public final Callback<MultipleSelectionModel<T>, List<Button>> getExtraButtonsProvider() {
-        return extraButtonsProviderProperty().get();
+    public final Node getTop() {
+        return topProperty().get();
     }
 
-    public final void setExtraButtonsProvider(Callback<MultipleSelectionModel<T>, List<Button>> extraButtonsProvider) {
-        extraButtonsProviderProperty().set(extraButtonsProvider);
+    public final void setTop(Node top) {
+        topProperty().set(top);
+    }
+
+    // bottom
+
+    private final ObjectProperty<Node> bottom = new SimpleObjectProperty<>(this, "bottom");
+
+    /**
+     * A node displayed at the bottom of the popup content.
+     *
+     * @return the bottom node property
+     */
+    public final ObjectProperty<Node> bottomProperty() {
+        return bottom;
+    }
+
+    public final Node getBottom() {
+        return bottomProperty().get();
+    }
+
+    public final void setBottom(Node bottom) {
+        bottomProperty().set(bottom);
+    }
+
+    // left
+
+    private final ObjectProperty<Node> left = new SimpleObjectProperty<>(this, "left");
+
+    /**
+     * A node displayed on the left side of the popup content.
+     *
+     * @return the left node property
+     */
+    public final ObjectProperty<Node> leftProperty() {
+        return left;
+    }
+
+    public final Node getLeft() {
+        return leftProperty().get();
+    }
+
+    public final void setLeft(Node left) {
+        leftProperty().set(left);
+    }
+
+    // right
+
+    private final ObjectProperty<Node> right = new SimpleObjectProperty<>(this, "right");
+
+    /**
+     * A node displayed on the right side of the popup content.
+     *
+     * @return the right node property
+     */
+    public final ObjectProperty<Node> rightProperty() {
+        return right;
+    }
+
+    public final Node getRight() {
+        return rightProperty().get();
+    }
+
+    public final void setRight(Node right) {
+        rightProperty().set(right);
+    }
+
+    // placeholder
+
+    private final ObjectProperty<Node> placeholder = new SimpleObjectProperty<>(this, "placeholder");
+
+    /**
+     * Returns the property holding the placeholder node, which is displayed when there are no items.
+     *
+     * @return the placeholder property
+     */
+    public final ObjectProperty<Node> placeholderProperty() {
+        return placeholder;
+    }
+
+    public final Node getPlaceholder() {
+        return placeholderProperty().get();
+    }
+
+    public final void setPlaceholder(Node placeholder) {
+        placeholderProperty().set(placeholder);
     }
 
     /**
@@ -156,7 +323,7 @@ public class SelectionBox<T> extends Control {
      * The button will be styled with the "extra-button" class and will adjust its visibility
      * based on its managed property. The button's maximum width will be set to the maximum double value.
      *
-     * @param text the text to be displayed on the button
+     * @param text   the text to be displayed on the button
      * @param action the action to be executed when the button is clicked
      * @return the created Button instance
      */
@@ -169,9 +336,9 @@ public class SelectionBox<T> extends Control {
      * The created button will be styled with "extra-button" class and will adjust its visibility
      * based on its managed property. The button's maximum width will be set to the maximum double value.
      *
-     * @param text the text to be displayed on the button
+     * @param text    the text to be displayed on the button
      * @param graphic the graphic node to be displayed on the button
-     * @param action the action to be executed when the button is clicked
+     * @param action  the action to be executed when the button is clicked
      * @return the created Button instance
      */
     public Button createExtraButton(String text, Node graphic, Runnable action) {
@@ -183,48 +350,11 @@ public class SelectionBox<T> extends Control {
             if (action != null) {
                 action.run();
             }
+            if (isAutoHideOnSelection()) {
+                hide();
+            }
         });
         return button;
-    }
-
-    // extraButtonsPosition
-
-    private ObjectProperty<VerticalPosition> extraButtonsPosition;
-
-    /**
-     * Returns the ObjectProperty that controls the vertical position of extra buttons in the SelectionBox.
-     * This property determines whether the extra buttons are positioned at the top or bottom relative to the main items.
-     *
-     * @return the ObjectProperty controlling the vertical position of extra buttons.
-     */
-    public final ObjectProperty<VerticalPosition> extraButtonsPositionProperty() {
-        if (extraButtonsPosition == null) {
-            extraButtonsPosition = new StyleableObjectProperty<>(DEFAULT_EXTRA_BUTTON_POSITION) {
-                @Override
-                public Object getBean() {
-                    return SelectionBox.this;
-                }
-
-                @Override
-                public String getName() {
-                    return "extraButtonsPosition";
-                }
-
-                @Override
-                public CssMetaData<? extends Styleable, VerticalPosition> getCssMetaData() {
-                    return StyleableProperties.EXTRA_BUTTONS_POSITION;
-                }
-            };
-        }
-        return extraButtonsPosition;
-    }
-
-    public final VerticalPosition getExtraButtonsPosition() {
-        return extraButtonsPosition == null ? DEFAULT_EXTRA_BUTTON_POSITION : extraButtonsPosition.get();
-    }
-
-    public final void setExtraButtonsPosition(VerticalPosition extraButtonsPosition) {
-        extraButtonsPositionProperty().set(extraButtonsPosition);
     }
 
     // graphic
@@ -251,6 +381,31 @@ public class SelectionBox<T> extends Control {
 
     public final Node getGraphic() {
         return graphic == null ? null : graphic.get();
+    }
+
+    // promptText
+
+    private StringProperty promptText;
+
+    /**
+     * Returns the prompt text property of this SelectionBox. The prompt text is an optional
+     * text that can be displayed in the picker when no item is selected.
+     *
+     * @return the StringProperty containing the prompt text.
+     */
+    public final StringProperty promptTextProperty() {
+        if (promptText == null) {
+            promptText = new SimpleStringProperty(this, "promptText");
+        }
+        return promptText;
+    }
+
+    public final void setPromptText(String promptText) {
+        promptTextProperty().set(promptText);
+    }
+
+    public final String getPromptText() {
+        return promptText == null ? null : promptText.get();
     }
 
     // autoHideOnSelection
@@ -300,6 +455,18 @@ public class SelectionBox<T> extends Control {
      * For instance, if the selected item collection is {@code [1, 2, 3, 4, 5]}, the converter can format
      * this list to display as "1, 2, 3, 4, 5". By setting a custom converter, it is possible to modify
      * the display to any desired format, such as "1~5".
+     * <p>
+     * If the selected items list is {@code null} or empty, the {@code promptTextProperty()} value will
+     * be used instead, so there is no need to handle these cases within the converter.
+     * You can also choose to always return your own string (for example, "Select" or "Please choose")
+     * <pre>{@code
+     * selectionBox.setSelectedItemsConverter(
+     *     new SimpleStringConverter<>(selectedItems -> {
+     *         // return "Select";
+     *         return selectionBox.getPromptText();
+     *     })
+     * );
+     * }</pre>
      * <p>
      * The {@code selectedItemsConverterProperty} provides a way to bind the display logic to UI components,
      * enabling dynamic updates whenever the selected items change or the converter is redefined.
@@ -353,7 +520,11 @@ public class SelectionBox<T> extends Control {
     /**
      * Returns the BooleanProperty that controls the read-only state of the SelectionBox.
      * When set to true, the SelectionBox will be in read-only mode, preventing user interaction.
-     * The default value is false.
+     * <p>
+     * Can be set via CSS using the {@code -fx-read-only} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code false}.
+     * </p>
      *
      * @return the BooleanProperty controlling the read-only state of the SelectionBox.
      */
@@ -388,46 +559,6 @@ public class SelectionBox<T> extends Control {
         readOnlyProperty().set(readOnly);
     }
 
-    // showExtraButtons
-
-    private BooleanProperty showExtraButtons;
-
-    /**
-     * Returns the BooleanProperty that determines whether extra buttons are shown in the SelectionBox.
-     * This property can be styled via CSS.
-     *
-     * @return the BooleanProperty controlling the visibility of extra buttons.
-     */
-    public final BooleanProperty showExtraButtonsProperty() {
-        if (showExtraButtons == null) {
-            showExtraButtons = new StyleableBooleanProperty(DEFAULT_SHOW_EXTRA_BUTTON) {
-                @Override
-                public Object getBean() {
-                    return SelectionBox.this;
-                }
-
-                @Override
-                public String getName() {
-                    return "showExtraButtons";
-                }
-
-                @Override
-                public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
-                    return StyleableProperties.SHOW_EXTRA_BUTTONS;
-                }
-            };
-        }
-        return showExtraButtons;
-    }
-
-    public final boolean getShowExtraButtons() {
-        return showExtraButtons == null ? DEFAULT_SHOW_EXTRA_BUTTON : showExtraButtons.get();
-    }
-
-    public final void setShowExtraButtons(boolean showExtraButtons) {
-        showExtraButtonsProperty().set(showExtraButtons);
-    }
-
     // selectionModel
 
     private final ObjectProperty<MultipleSelectionModel<T>> selectionModel = new SimpleObjectProperty<>(this, "selectionModel");
@@ -451,6 +582,310 @@ public class SelectionBox<T> extends Control {
         this.selectionModel.set(selectionModel);
     }
 
+    // currentSelectionMode (read-only)
+
+    private final ReadOnlyObjectWrapper<SelectionMode> currentSelectionMode = new ReadOnlyObjectWrapper<>(this, "currentSelectionMode");
+
+    public final SelectionMode getCurrentSelectionMode() {
+        return currentSelectionMode.get();
+    }
+
+    /**
+     * Provides a read-only property that directly exposes the current
+     * {@link SelectionMode} of this control without requiring multilevel checks
+     * on the underlying {@link javafx.scene.control.MultipleSelectionModel}.
+     * This is particularly convenient for child classes or external consumers
+     * who need to quickly determine whether the mode is
+     * {@link SelectionMode#SINGLE}, {@link SelectionMode#MULTIPLE}, or {@code null}
+     * (in case there is no active selection model).
+     * <p>
+     * To modify the selection mode, call
+     * {@code getSelectionModel().setSelectionMode(...)} directly,
+     * since this property itself is read-only.
+     *
+     * @return a read-only {@link SelectionMode} property
+     */
+    public final ReadOnlyObjectProperty<SelectionMode> currentSelectionModeProperty() {
+        return currentSelectionMode.getReadOnlyProperty();
+    }
+
+    /**
+     * Creates and returns an {@code ObjectBinding} that observes changes to the
+     * {@code selectionModelProperty()} and its associated {@code selectionModeProperty()}.
+     * This binding dynamically updates its value to the current {@code SelectionMode}
+     * of the {@code MultipleSelectionModel} associated with the {@code SelectionBox}.
+     * <p>
+     * The binding ensures that it properly listens to changes in the selection model
+     * and updates accordingly when the selection mode changes, even when the
+     * selection model is replaced.
+     *
+     * @return an {@code ObjectBinding} that provides the current {@code SelectionMode}
+     * of the {@code MultipleSelectionModel}, or {@code null} if no
+     * selection model is set
+     */
+    private ObjectBinding<SelectionMode> getCurrentSelectionModeBinding() {
+        return new ObjectBinding<>() {
+            // Listener for selectionModeProperty
+            private final InvalidationListener selectionModeInvalidationListener = obs -> invalidate();
+            // Stores the old selectionModel
+            private MultipleSelectionModel<T> oldSelectionModel;
+
+            {
+                // Listen to selectionModelProperty changes
+                selectionModelProperty().addListener((observable, oldValue, newValue) -> {
+                    // Remove old listener if exists
+                    if (oldSelectionModel != null) {
+                        oldSelectionModel.selectionModeProperty().removeListener(selectionModeInvalidationListener);
+                    }
+                    // Add listener to the new model if not null
+                    if (newValue != null) {
+                        newValue.selectionModeProperty().addListener(selectionModeInvalidationListener);
+                    }
+                    // Update the reference
+                    oldSelectionModel = newValue;
+                    // Force recalculation
+                    invalidate();
+                });
+
+                // Add listener if there's already a selectionModel
+                if (getSelectionModel() != null) {
+                    oldSelectionModel = getSelectionModel();
+                    oldSelectionModel.selectionModeProperty().addListener(selectionModeInvalidationListener);
+                }
+
+                // Bind to outer property to trigger computeValue
+                bind(selectionModelProperty());
+            }
+
+            @Override
+            protected SelectionMode computeValue() {
+                // Return null if selectionModel is null
+                MultipleSelectionModel<T> sm = getSelectionModel();
+                return (sm == null) ? null : sm.getSelectionMode();
+            }
+        };
+    }
+
+    // animationEnabled
+
+    private BooleanProperty animationEnabled;
+
+    /**
+     * Controls whether animation is enabled for the popup opening/closing transitions.
+     * <p>
+     * Can be set via CSS using the {@code -fx-animation-enabled} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code false}.
+     * </p>
+     *
+     * @return the animation enabled property
+     */
+    public final BooleanProperty animationEnabledProperty() {
+        if (animationEnabled == null) {
+            animationEnabled = new StyleableBooleanProperty(DEFAULT_ANIMATION_ENABLED) {
+                @Override
+                public Object getBean() {
+                    return SelectionBox.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "animationEnabled";
+                }
+
+                @Override
+                public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+                    return StyleableProperties.ANIMATION_ENABLED;
+                }
+            };
+        }
+        return animationEnabled;
+    }
+
+    public final boolean isAnimationEnabled() {
+        return animationEnabled == null ? DEFAULT_ANIMATION_ENABLED : animationEnabled.get();
+    }
+
+    public final void setAnimationEnabled(boolean value) {
+        animationEnabledProperty().set(value);
+    }
+
+    // onShowing
+
+    private ObjectProperty<EventHandler<WindowEvent>> onShowing;
+
+    /**
+     * The event handler property invoked <b>before</b> the SelectionPopup is shown.
+     * <p>
+     * This maps to {@link WindowEvent#WINDOW_SHOWING}. Use this to prepare data or UI
+     * state right before the popup becomes visible.
+     * </p>
+     *
+     * @return the property holding the handler invoked before showing the popup
+     * @see WindowEvent#WINDOW_SHOWING
+     */
+    public final ObjectProperty<EventHandler<WindowEvent>> onShowingProperty() {
+        if (onShowing == null) {
+            onShowing = new ObjectPropertyBase<>() {
+                @Override
+                protected void invalidated() {
+                    setEventHandler(WindowEvent.WINDOW_SHOWING, get());
+                }
+
+                @Override
+                public Object getBean() {
+                    return SelectionBox.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "onShowing";
+                }
+            };
+        }
+        return onShowing;
+    }
+
+    public final void setOnShowing(EventHandler<WindowEvent> value) {
+        onShowingProperty().set(value);
+    }
+
+    public final EventHandler<WindowEvent> getOnShowing() {
+        return onShowing == null ? null : onShowing.get();
+    }
+
+    // onShown
+
+    private ObjectProperty<EventHandler<WindowEvent>> onShown;
+
+    /**
+     * The event handler property invoked <b>after</b> the SelectionPopup has been shown.
+     * <p>
+     * This maps to {@link WindowEvent#WINDOW_SHOWN}. Use this to run logic that depends
+     * on the popup being visible (e.g., focusing a field inside the popup).
+     * </p>
+     *
+     * @return the property holding the handler invoked after the popup is shown
+     * @see WindowEvent#WINDOW_SHOWN
+     */
+    public final ObjectProperty<EventHandler<WindowEvent>> onShownProperty() {
+        if (onShown == null) {
+            onShown = new ObjectPropertyBase<>() {
+                @Override
+                protected void invalidated() {
+                    setEventHandler(WindowEvent.WINDOW_SHOWN, get());
+                }
+
+                @Override
+                public Object getBean() {
+                    return SelectionBox.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "onShown";
+                }
+            };
+        }
+        return onShown;
+    }
+
+    public final void setOnShown(EventHandler<WindowEvent> value) {
+        onShownProperty().set(value);
+    }
+
+    public final EventHandler<WindowEvent> getOnShown() {
+        return onShown == null ? null : onShown.get();
+    }
+
+    // onHiding
+
+    private ObjectProperty<EventHandler<WindowEvent>> onHiding;
+
+    /**
+     * The event handler property invoked <b>before</b> the SelectionPopup is hidden.
+     * <p>
+     * This maps to {@link WindowEvent#WINDOW_HIDING}. Use this to validate or persist
+     * a transient state before closing the popup.
+     * </p>
+     *
+     * @return the property holding the handler invoked before the popup is hidden
+     * @see WindowEvent#WINDOW_HIDING
+     */
+    public final ObjectProperty<EventHandler<WindowEvent>> onHidingProperty() {
+        if (onHiding == null) {
+            onHiding = new ObjectPropertyBase<>() {
+                @Override
+                protected void invalidated() {
+                    setEventHandler(WindowEvent.WINDOW_HIDING, get());
+                }
+
+                @Override
+                public Object getBean() {
+                    return SelectionBox.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "onHiding";
+                }
+            };
+        }
+        return onHiding;
+    }
+
+    public final void setOnHiding(EventHandler<WindowEvent> value) {
+        onHidingProperty().set(value);
+    }
+
+    public final EventHandler<WindowEvent> getOnHiding() {
+        return onHiding == null ? null : onHiding.get();
+    }
+
+    // onHidden
+
+    private ObjectProperty<EventHandler<WindowEvent>> onHidden;
+
+    /**
+     * The event handler property invoked <b>after</b> the SelectionPopup has been hidden.
+     * <p>
+     * This maps to {@link WindowEvent#WINDOW_HIDDEN}. Use this to perform cleanup work
+     * after the popup is fully closed.
+     * </p>
+     *
+     * @return the property holding the handler invoked after the popup is hidden
+     * @see WindowEvent#WINDOW_HIDDEN
+     */
+    public final ObjectProperty<EventHandler<WindowEvent>> onHiddenProperty() {
+        if (onHidden == null) {
+            onHidden = new ObjectPropertyBase<>() {
+                @Override
+                protected void invalidated() {
+                    setEventHandler(WindowEvent.WINDOW_HIDDEN, get());
+                }
+
+                @Override
+                public Object getBean() {
+                    return SelectionBox.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "onHidden";
+                }
+            };
+        }
+        return onHidden;
+    }
+
+    public final void setOnHidden(EventHandler<WindowEvent> value) {
+        onHiddenProperty().set(value);
+    }
+
+    public final EventHandler<WindowEvent> getOnHidden() {
+        return onHidden == null ? null : onHidden.get();
+    }
+
     private static class StyleableProperties {
         private static final CssMetaData<SelectionBox, Boolean> READ_ONLY = new CssMetaData<>("-fx-read-only", StyleConverter.getBooleanConverter(), DEFAULT_READ_ONLY) {
 
@@ -465,27 +900,15 @@ public class SelectionBox<T> extends Control {
             }
         };
 
-        private static final CssMetaData<SelectionBox, Boolean> SHOW_EXTRA_BUTTONS = new CssMetaData<>("-fx-show-extra-buttons", StyleConverter.getBooleanConverter(), DEFAULT_SHOW_EXTRA_BUTTON) {
+        private static final CssMetaData<SelectionBox, Boolean> ANIMATION_ENABLED = new CssMetaData<>("-fx-animation-enabled", StyleConverter.getBooleanConverter(), DEFAULT_ANIMATION_ENABLED) {
             @Override
-            public boolean isSettable(SelectionBox styleable) {
-                return styleable.showExtraButtons == null || !styleable.showExtraButtons.isBound();
+            public boolean isSettable(SelectionBox node) {
+                return node.animationEnabled == null || !node.animationEnabled.isBound();
             }
 
             @Override
-            public StyleableProperty<Boolean> getStyleableProperty(SelectionBox SelectionBox) {
-                return (StyleableProperty<Boolean>) SelectionBox.showExtraButtonsProperty();
-            }
-        };
-
-        private static final CssMetaData<SelectionBox, VerticalPosition> EXTRA_BUTTONS_POSITION = new CssMetaData<>("-fx-extra-buttons-position", StyleConverter.getEnumConverter(VerticalPosition.class), DEFAULT_EXTRA_BUTTON_POSITION) {
-            @Override
-            public boolean isSettable(SelectionBox styleable) {
-                return styleable.extraButtonsPosition == null || !styleable.extraButtonsPosition.isBound();
-            }
-
-            @Override
-            public StyleableProperty<VerticalPosition> getStyleableProperty(SelectionBox SelectionBox) {
-                return (StyleableProperty<VerticalPosition>) SelectionBox.extraButtonsPositionProperty();
+            public StyleableProperty<Boolean> getStyleableProperty(SelectionBox node) {
+                return (StyleableProperty<Boolean>) node.animationEnabledProperty();
             }
         };
 
@@ -493,11 +916,16 @@ public class SelectionBox<T> extends Control {
 
         static {
             final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(Control.getClassCssMetaData());
-            Collections.addAll(styleables, READ_ONLY, SHOW_EXTRA_BUTTONS, EXTRA_BUTTONS_POSITION);
+            Collections.addAll(styleables, READ_ONLY, ANIMATION_ENABLED);
             STYLEABLES = Collections.unmodifiableList(styleables);
         }
     }
 
+    /**
+     * Returns the CSS metadata for this class.
+     *
+     * @return the CSS metadata for this class
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return StyleableProperties.STYLEABLES;
     }

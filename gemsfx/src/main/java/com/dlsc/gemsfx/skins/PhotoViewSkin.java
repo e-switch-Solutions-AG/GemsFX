@@ -5,12 +5,12 @@ import com.dlsc.gemsfx.PhotoView.ClipShape;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
-import javafx.scene.control.SkinBase;
 import javafx.scene.control.Slider;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.InnerShadow;
@@ -27,8 +27,19 @@ import javafx.scene.shape.Rectangle;
 
 import java.util.function.Supplier;
 
-public class PhotoViewSkin extends SkinBase<PhotoView> {
+/**
+ * Skin for {@link PhotoView}.
+ * <p>
+ * The skin builds an editable photo area with an image box, circular or rectangular clipping, drag and zoom handling,
+ * an optional placeholder, and a slider for controlling the photo zoom.
+ */
+public class PhotoViewSkin extends GemsSkinBase<PhotoView> {
 
+    /**
+     * Creates a skin for the given photo view.
+     *
+     * @param view the photo view rendered by this skin
+     */
     public PhotoViewSkin(PhotoView view) {
         super(view);
 
@@ -78,6 +89,12 @@ public class PhotoViewSkin extends SkinBase<PhotoView> {
         getChildren().setAll(controlsWrapper);
     }
 
+    /**
+     * Displays, clips, and optionally crops the photo shown by the enclosing {@link PhotoViewSkin}.
+     * <p>
+     * The image box owns the image view, border shape, placeholder handling, drag translation, and delayed crop service
+     * used to store the cropped image in the skinnable control's properties.
+     */
     public class ImageBox extends StackPane {
 
         private final CropService cropService;
@@ -89,6 +106,17 @@ public class PhotoViewSkin extends SkinBase<PhotoView> {
         private double startY;
         private double startX;
 
+        private InvalidationListener layoutProgressListener;
+        private ChangeListener<Image> photoChangeListenerForLayout;
+        private InvalidationListener cropProgressListener;
+        private ChangeListener<Image> photoChangeListenerForCrop;
+        private InvalidationListener cropListener;
+
+        /**
+         * Creates an image box for the given photo view.
+         *
+         * @param view the photo view supplying image, clip, zoom, translation, and cropping state
+         */
         public ImageBox(PhotoView view) {
             cropService = new CropService();
 
@@ -103,22 +131,51 @@ public class PhotoViewSkin extends SkinBase<PhotoView> {
             imageView.effectProperty().bind(view.photoEffectProperty());
             imageView.setManaged(false);
 
-            view.photoProperty().addListener(it -> {
-                Image photo = view.getPhoto();
-                if (photo != null) {
-                    if (photo.isBackgroundLoading()) {
-                        photo.progressProperty().addListener(it2 -> {
-                            if (photo.getProgress() == 1.0) {
-                                requestLayout();
-                            }
-                        });
+            layoutProgressListener = it2 -> {
+                if (imageView.getImage() != null && imageView.getImage().getProgress() == 1.0) {
+                    requestLayout();
+                }
+            };
+            photoChangeListenerForLayout = (obs, oldPhoto, newPhoto) -> {
+                if (oldPhoto != null) {
+                    oldPhoto.progressProperty().removeListener(layoutProgressListener);
+                }
+                if (newPhoto != null) {
+                    if (newPhoto.isBackgroundLoading()) {
+                        newPhoto.progressProperty().addListener(layoutProgressListener);
                     } else {
                         requestLayout();
                     }
                 } else {
                     requestLayout();
                 }
-            });
+            };
+            cropProgressListener = it2 -> {
+                if (imageView.getImage() != null && imageView.getImage().getProgress() == 1.0) {
+                    crop();
+                }
+            };
+            photoChangeListenerForCrop = (obs, oldPhoto, newPhoto) -> {
+                if (oldPhoto != null) {
+                    oldPhoto.progressProperty().removeListener(cropProgressListener);
+                }
+                if (getSkinnable().isCreateCroppedImage()) {
+                    if (newPhoto != null) {
+                        if (newPhoto.isBackgroundLoading()) {
+                            newPhoto.progressProperty().addListener(cropProgressListener);
+                        } else {
+                            crop();
+                        }
+                    }
+                }
+            };
+
+            register(view.photoProperty(), photoChangeListenerForLayout);
+            // Apply initial photo state
+            Image initialPhoto = view.getPhoto();
+            if (initialPhoto != null && initialPhoto.isBackgroundLoading()) {
+                initialPhoto.progressProperty().addListener(layoutProgressListener);
+            }
 
             setOnMousePressed(evt -> {
                 if (view.isEditable()) {
@@ -159,27 +216,24 @@ public class PhotoViewSkin extends SkinBase<PhotoView> {
             rectangle.setEffect(new DropShadow());
             rectangle.setMouseTransparent(true);
 
-            view.clipShapeProperty().addListener(it -> {
+            register(view.clipShapeProperty(), it -> {
                 updateBorderShape();
                 updateClip();
             });
 
-            view.placeholderProperty().addListener((obs, oldPlaceholder, newPlaceholder) -> updatePlaceholder(oldPlaceholder, newPlaceholder));
+            register(view.placeholderProperty(), (obs, oldPlaceholder, newPlaceholder) -> updatePlaceholder(oldPlaceholder, newPlaceholder));
 
             updateBorderShape();
             updateClip();
             updatePlaceholder(null, view.getPlaceholder());
 
-            InvalidationListener cropListener = it -> {
-                if (view.isCreateCroppedImage()) {
-                    Image photo = view.getPhoto();
+            cropListener = it -> {
+                PhotoView pv = getSkinnable();
+                if (pv.isCreateCroppedImage()) {
+                    Image photo = pv.getPhoto();
                     if (photo != null) {
                         if (photo.isBackgroundLoading()) {
-                            photo.progressProperty().addListener(it2 -> {
-                                if (photo.getProgress() == 1.0) {
-                                    crop();
-                                }
-                            });
+                            photo.progressProperty().addListener(cropProgressListener);
                         } else {
                             crop();
                         }
@@ -187,11 +241,11 @@ public class PhotoViewSkin extends SkinBase<PhotoView> {
                 }
             };
 
-            view.photoProperty().addListener(cropListener);
-            view.photoZoomProperty().addListener(cropListener);
-            view.photoTranslateXProperty().addListener(cropListener);
-            view.photoTranslateYProperty().addListener(cropListener);
-            view.createCroppedImageProperty().addListener(cropListener);
+            register(view.photoProperty(), photoChangeListenerForCrop);
+            register(view.photoZoomProperty(), cropListener);
+            register(view.photoTranslateXProperty(), cropListener);
+            register(view.photoTranslateYProperty(), cropListener);
+            register(view.createCroppedImageProperty(), cropListener);
         }
 
         private void updateBorderShape() {
@@ -262,6 +316,9 @@ public class PhotoViewSkin extends SkinBase<PhotoView> {
             }
         }
 
+        /**
+         * Starts or restarts the delayed crop operation when cropped image creation is enabled.
+         */
         public void crop() {
             if (getSkinnable().isCreateCroppedImage()) {
                 cropService.restart();

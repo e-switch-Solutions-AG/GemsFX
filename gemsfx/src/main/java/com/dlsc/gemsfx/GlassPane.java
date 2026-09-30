@@ -3,23 +3,47 @@ package com.dlsc.gemsfx;
 import javafx.animation.Animation.Status;
 import javafx.animation.FadeTransition;
 import javafx.beans.property.*;
-import javafx.geometry.Insets;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import javafx.util.Duration;
+
+import java.util.Objects;
+
+import com.dlsc.gemsfx.util.DurationConverter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import javafx.css.CssMetaData;
+import javafx.css.Styleable;
+import javafx.css.StyleableBooleanProperty;
+import javafx.css.StyleableDoubleProperty;
+import javafx.css.StyleableObjectProperty;
+import javafx.css.StyleableProperty;
+import javafx.css.converter.BooleanConverter;
+import javafx.css.converter.SizeConverter;
 
 /**
  * A simple pane that can be used to overlay the UI with a semi-transparent color,
  * indicating that input is blocked. The glass pane can be animated, which means it
  * will fade in / fade out when it becomes visible or invisible.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-blocking-opacity}</td><td>{@code double}</td><td>Opacity of the glass pane when blocking</td></tr>
+ *     <tr><td>{@code -fx-fade-in-out}</td><td>{@code boolean}</td><td>Whether the glass pane fades in/out</td></tr>
+ *     <tr><td>{@code -fx-fade-in-out-duration}</td><td>{@code Duration}</td><td>Duration of the fade in/out animation</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class GlassPane extends StackPane {
 
     private final FadeTransition fadeTransition = new FadeTransition();
 
+    /**
+     * Constructs a new glass pane.
+     */
     public GlassPane() {
         getStyleClass().add("glass-pane");
 
@@ -29,7 +53,6 @@ public class GlassPane extends StackPane {
             }
         });
 
-        setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
         setMouseTransparent(false);
         setVisible(false);
 
@@ -59,7 +82,16 @@ public class GlassPane extends StackPane {
         });
     }
 
-    private final DoubleProperty blockingOpacity = new SimpleDoubleProperty(this, "blockingOpacity", .5);
+    @Override
+    public String getUserAgentStylesheet() {
+        return Objects.requireNonNull(GlassPane.class.getResource("glass-pane.css")).toExternalForm();
+    }
+
+    private final DoubleProperty blockingOpacity = new StyleableDoubleProperty(.5) {
+        @Override public Object getBean() { return GlassPane.this; }
+        @Override public String getName() { return "blockingOpacity"; }
+        @Override public CssMetaData<? extends Styleable, Number> getCssMetaData() { return StyleableProperties.BLOCKING_OPACITY; }
+    };
 
     public final double getBlockingOpacity() {
         return blockingOpacity.get();
@@ -69,6 +101,11 @@ public class GlassPane extends StackPane {
      * The opacity value between 0 and 1 that will be used to gray out the
      * content over which the glass pane is place. A separate opacity property is needed
      * to support the fade in / fade out animation AND the regular opacity.
+     * <p>
+     * Can be set via CSS using the {@code -fx-blocking-opacity} property.
+     * Valid values are: a number between 0 and 1.
+     * The default value is {@code 0.5}.
+     * </p>
      *
      * @return the opacity of the glass pane
      */
@@ -80,7 +117,11 @@ public class GlassPane extends StackPane {
         this.blockingOpacity.set(blockingOpacity);
     }
 
-    private final ObjectProperty<Duration> fadeInOutDuration = new SimpleObjectProperty<>(this, "fadeInOutDuration", Duration.millis(100));
+    private final ObjectProperty<Duration> fadeInOutDuration = new StyleableObjectProperty<>(Duration.millis(100)) {
+        @Override public Object getBean() { return GlassPane.this; }
+        @Override public String getName() { return "fadeInOutDuration"; }
+        @Override public CssMetaData<? extends Styleable, Duration> getCssMetaData() { return StyleableProperties.FADE_IN_OUT_DURATION; }
+    };
 
     public final Duration getFadeInOutDuration() {
         return fadeInOutDuration.get();
@@ -88,6 +129,11 @@ public class GlassPane extends StackPane {
 
     /**
      * Stores the duration of the fade in / fade out animation.
+     * <p>
+     * Can be set via CSS using the {@code -fx-fade-in-out-duration} property.
+     * Valid values are: a number in milliseconds.
+     * The default value is {@code 100}.
+     * </p>
      *
      * @return the animation duration in milliseconds
      */
@@ -99,7 +145,11 @@ public class GlassPane extends StackPane {
         this.fadeInOutDuration.set(fadeInOutDuration);
     }
 
-    private final BooleanProperty fadeInOut = new SimpleBooleanProperty(this, "fadeInOut");
+    private final BooleanProperty fadeInOut = new StyleableBooleanProperty(false) {
+        @Override public Object getBean() { return GlassPane.this; }
+        @Override public String getName() { return "fadeInOut"; }
+        @Override public CssMetaData<? extends Styleable, Boolean> getCssMetaData() { return StyleableProperties.FADE_IN_OUT; }
+    };
 
     public final boolean isFadeInOut() {
         return fadeInOut.get();
@@ -108,6 +158,11 @@ public class GlassPane extends StackPane {
     /**
      * A property that determines whether we want to use a fade in / out animation of the glass pane
      * when it gets shown or hidden.
+     * <p>
+     * Can be set via CSS using the {@code -fx-fade-in-out} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code false}.
+     * </p>
      *
      * @see #fadeInOutDurationProperty()
      * @return true if the fade in / out process will be animated
@@ -137,5 +192,66 @@ public class GlassPane extends StackPane {
 
     public final boolean isHide() {
         return hide.get();
+    }
+
+    private static class StyleableProperties {
+
+        private static final CssMetaData<GlassPane, Number> BLOCKING_OPACITY =
+                new CssMetaData<>("-fx-blocking-opacity", SizeConverter.getInstance(), 0.5) {
+                    @Override
+                    public boolean isSettable(GlassPane n) {
+                        return !n.blockingOpacity.isBound();
+                    }
+                    @Override
+                    public StyleableProperty<Number> getStyleableProperty(GlassPane n) {
+                        return (StyleableProperty<Number>) n.blockingOpacityProperty();
+                    }
+                };
+
+        private static final CssMetaData<GlassPane, Boolean> FADE_IN_OUT =
+                new CssMetaData<>("-fx-fade-in-out", BooleanConverter.getInstance(), Boolean.FALSE) {
+                    @Override
+                    public boolean isSettable(GlassPane n) {
+                        return !n.fadeInOut.isBound();
+                    }
+                    @Override
+                    public StyleableProperty<Boolean> getStyleableProperty(GlassPane n) {
+                        return (StyleableProperty<Boolean>) n.fadeInOutProperty();
+                    }
+                };
+
+        private static final CssMetaData<GlassPane, Duration> FADE_IN_OUT_DURATION =
+                new CssMetaData<>("-fx-fade-in-out-duration", DurationConverter.getInstance(), Duration.millis(100)) {
+                    @Override
+                    public boolean isSettable(GlassPane n) {
+                        return !n.fadeInOutDuration.isBound();
+                    }
+                    @Override
+                    public StyleableProperty<Duration> getStyleableProperty(GlassPane n) {
+                        return (StyleableProperty<Duration>) n.fadeInOutDurationProperty();
+                    }
+                };
+
+        private static final List<CssMetaData<? extends Styleable, ?>> STYLEABLES;
+
+        static {
+            final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(StackPane.getClassCssMetaData());
+            Collections.addAll(styleables, BLOCKING_OPACITY, FADE_IN_OUT, FADE_IN_OUT_DURATION);
+            STYLEABLES = Collections.unmodifiableList(styleables);
+        }
+    }
+
+    @Override
+    public List<CssMetaData<? extends Styleable, ?>> getCssMetaData() {
+        return getClassCssMetaData();
+    }
+
+    /**
+     * Returns the CSS metadata for this pane class.
+     *
+     * @return the CSS metadata for this pane class
+     */
+    public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
+        return StyleableProperties.STYLEABLES;
     }
 }

@@ -2,8 +2,7 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.DialogPane;
 import com.dlsc.gemsfx.DialogPane.Dialog;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
@@ -17,7 +16,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -25,8 +23,6 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.scenicview.ScenicView;
 
 import java.awt.Desktop;
 import java.io.IOException;
@@ -40,10 +36,12 @@ import java.util.prefs.Preferences;
 
 import static com.dlsc.gemsfx.DialogPane.Type.INFORMATION;
 
-public class DialogPaneApp extends Application {
+public class DialogPaneApp extends GemApplication {
 
     @Override
     public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         DialogPane dialogPane = new DialogPane();
 
         Button blankButton = new Button("Blank");
@@ -126,11 +124,15 @@ public class DialogPaneApp extends Application {
         });
 
         Button busyButton = new Button("Busy");
-        busyButton.setOnAction(evt -> dialogPane.showBusyIndicator().onClose(buttonType -> {
-            if (buttonType.equals(ButtonType.CANCEL)) {
-                dialogPane.showInformation("Cancelled", "The busy dialog has been cancelled via the ESC key.");
-            }
-        }));
+        busyButton.setOnAction(evt -> {
+            Dialog<Void> dialog = dialogPane.showBusyIndicator();
+
+            // the busy dialog has no buttons at all, hence the user can not cancel it. The
+            // application has to close it itself once the background work has finished.
+            PauseTransition backgroundWork = new PauseTransition(Duration.seconds(5));
+            backgroundWork.setOnFinished(finished -> dialog.cancel());
+            backgroundWork.play();
+        });
 
         Button maxButton = new Button("Maximize");
         maxButton.setOnAction(evt -> {
@@ -200,10 +202,11 @@ public class DialogPaneApp extends Application {
         VBox.setVgrow(flowPane, Priority.ALWAYS);
         VBox.setVgrow(durationBox, Priority.ALWAYS);
 
-        Button scenicView = new Button("Scenic View");
-        scenicView.setOnAction(evt -> ScenicView.show(scenicView.getScene()));
+        Button scenicView = new Button("Dev Tools");
+        hideInBrowser(scenicView);
+        configureDevToolsButton(scenicView);
 
-        HBox hBox = new HBox(10, new Label("Animation:"), durationBox, new Label("Style:"), styleBox, scenicView);
+        HBox hBox = new HBox(10, new Label("Animation:"), durationBox, new Label("StyleType:"), styleBox, scenicView);
         hBox.setAlignment(Pos.CENTER);
 
         VBox vBox = new VBox(flowPane, hBox);
@@ -226,10 +229,8 @@ public class DialogPaneApp extends Application {
         primaryStage.setScene(scene);
         primaryStage.setWidth(1500);
         primaryStage.setHeight(900);
-        primaryStage.centerOnScreen();
-        primaryStage.show();
 
-        CSSFX.start();
+        primaryStage.show();
     }
 
     private void later(Runnable runnable, int counter) {

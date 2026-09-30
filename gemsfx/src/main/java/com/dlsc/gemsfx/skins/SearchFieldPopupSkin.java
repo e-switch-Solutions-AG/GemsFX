@@ -17,12 +17,25 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+/**
+ * Skin for {@link SearchFieldPopup}.
+ * <p>
+ * The skin displays the search field suggestions in a sorted {@link ListView}
+ * and commits the selected suggestion on primary mouse clicks.
+ *
+ * @param <T> the suggestion item type
+ */
 public class SearchFieldPopupSkin<T> implements Skin<SearchFieldPopup<T>> {
 
     private final SearchFieldPopup<T> control;
     private final ListView<T> listView;
     private final SearchField<T> searchField;
 
+    /**
+     * Creates a new skin for the given search field popup.
+     *
+     * @param control the popup to skin
+     */
     public SearchFieldPopupSkin(SearchFieldPopup<T> control) {
         this.control = control;
 
@@ -39,13 +52,8 @@ public class SearchFieldPopupSkin<T> implements Skin<SearchFieldPopup<T>> {
 
         listView.getStyleClass().add("search-field-list-view");
         listView.cellFactoryProperty().bind(searchField.cellFactoryProperty());
-
-        listView.prefWidthProperty().bind(control.prefWidthProperty());
-        listView.maxWidthProperty().bind(control.maxWidthProperty());
         listView.minWidthProperty().bind(control.minWidthProperty());
-
         listView.placeholderProperty().bind(searchField.placeholderProperty());
-
         listView.getSelectionModel().selectedItemProperty().addListener(it -> control.getSearchField().setSelectedItem(listView.getSelectionModel().getSelectedItem()));
         registerEventListener();
     }

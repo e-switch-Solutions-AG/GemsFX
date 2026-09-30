@@ -1,7 +1,6 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.DrawerStackPane;
-import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -9,17 +8,18 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import org.scenicview.ScenicView;
 
-public class DrawerStackPaneApp extends Application {
+public class DrawerStackPaneApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         DrawerStackPane drawerStackPane = new DrawerStackPane();
         drawerStackPane.setAnimateDrawer(true);
         drawerStackPane.getToolbarItems().add(new Button("Refresh"));
+        drawerStackPane.setPreferredDrawerWidth(Region.USE_PREF_SIZE);
 
         Label label = new Label("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.   \n" +
                 "\n" +
@@ -45,11 +45,11 @@ public class DrawerStackPaneApp extends Application {
 
         label.setWrapText(true);
         label.setPadding(new Insets(20));
+        label.setPrefWidth(800);
 
         ScrollPane scrollPane = new ScrollPane(label);
         scrollPane.setFitToWidth(true);
 
-        drawerStackPane.setPreferredDrawerWidth(800);
         drawerStackPane.setDrawerContent(scrollPane);
 
         Button showButton = new Button("Show Drawer");
@@ -70,7 +70,7 @@ public class DrawerStackPaneApp extends Application {
         CheckBox maximizeBox = new CheckBox("Maximize");
         maximizeBox.selectedProperty().addListener(it -> {
             if (maximizeBox.isSelected()) {
-                drawerStackPane.setPreferredDrawerWidth(-1);
+                drawerStackPane.setPreferredDrawerWidth(Double.MAX_VALUE);
             } else {
                 drawerStackPane.setPreferredDrawerWidth(800);
             }
@@ -93,7 +93,9 @@ public class DrawerStackPaneApp extends Application {
 
         controls.setAlignment(Pos.CENTER_LEFT);
         controls.setStyle("-fx-padding: 10px; -fx-background-color: lightgrey, white; -fx-background-insets: 0px, 1px 0px 0px 0px;");
-
+        if (Boolean.getBoolean("atlantafx")) {
+            controls.setStyle("-fx-padding: 10px; -fx-background-color: -color-border-default, -color-bg-default; -fx-background-insets: 0px, 1px 0px 0px 0px;");
+        }
         BorderPane borderPane = new BorderPane(drawerStackPane);
         borderPane.setBottom(controls);
         borderPane.setPrefHeight(850);
@@ -102,10 +104,8 @@ public class DrawerStackPaneApp extends Application {
         stage.setTitle("Drawer Demo");
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.centerOnScreen();
-        stage.show();
 
-        ScenicView.show(scene);
+        stage.show();
     }
 
     public static void main(String[] args) {

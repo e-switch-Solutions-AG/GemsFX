@@ -3,7 +3,7 @@ package com.dlsc.gemsfx.demo;
 import com.dlsc.gemsfx.PaymentOptionView;
 import com.dlsc.gemsfx.PaymentOptionView.Option;
 import com.dlsc.gemsfx.PaymentOptionView.Theme;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
@@ -16,10 +16,10 @@ import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class PaymentOptionTilesApp extends Application {
+public class PaymentOptionTilesApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         TilePane pane = new TilePane();
         pane.setAlignment(Pos.CENTER);
         pane.setPadding(new Insets(20));
@@ -38,6 +38,7 @@ public class PaymentOptionTilesApp extends Application {
 
         ComboBox<Theme> themeBox = new ComboBox<>();
         themeBox.getItems().setAll(Theme.values());
+        themeBox.setConverter(new EnumStringConverter<>());
         themeBox.valueProperty().bindBidirectional(theme);
 
         VBox.setVgrow(pane, Priority.ALWAYS);
@@ -62,7 +63,7 @@ public class PaymentOptionTilesApp extends Application {
         stage.setScene(scene);
         stage.setWidth(1000);
         stage.setHeight(850);
-        stage.centerOnScreen();
+
         stage.show();
     }
 

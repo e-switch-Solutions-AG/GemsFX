@@ -1,0 +1,492 @@
+.showcase .showcase-header-bar {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: transparent transparent -color-border-default transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.showcase .showcase-header-bar .title-label {
+    -fx-font-size: 1em;
+    -fx-font-weight: bold;
+}
+
+.showcase .showcase-header-bar .repository-link {
+    -fx-font-size: .9em;
+    -fx-padding: 0;
+    -fx-graphic-text-gap: 4px;
+}
+
+.showcase .showcase-header-bar .repository-link .ikonli-font-icon {
+    -fx-icon-size: 14px;
+    -fx-icon-color: -color-link-fg;
+}
+
+.showcase .showcase-header-bar .mode-button,
+.showcase .showcase-header-bar .welcome-button {
+    -fx-padding: 4px;
+}
+
+.showcase .showcase-header-bar .mode-button .ikonli-font-icon,
+.showcase .showcase-header-bar .welcome-button .ikonli-font-icon {
+    -fx-icon-size: 14px;
+    -fx-icon-color: -color-fg-default;
+}
+
+/* the skin of the AtlantaFX header button group aligns the buttons at the top of the header
+ * bar, but they should be centered like the rest of the header bar content
+ */
+.showcase .showcase-header-bar .header-button-group > .container {
+    -fx-alignment: center-left;
+}
+
+.showcase .showcase-header-bar .theme-menu-button {
+    -fx-padding: 2px 6px 2px 8px;
+}
+
+/* the gap separates the list of controls from the manual, it uses the same background color
+ * as the tool bar of the PDF view
+ */
+.showcase .content-box {
+    -fx-background-color: -color-bg-subtle;
+    -fx-spacing: 8px;
+    -fx-padding: 8px;
+}
+
+/* the banner above the list of controls and the manual explaining how the demos are launched */
+.showcase .hint-banner {
+    -fx-background-color: -color-warning-emphasis;
+    -fx-border-color: transparent transparent -color-border-default transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 5px 6px 5px 10px;
+    -fx-spacing: 8px;
+}
+
+.showcase .hint-banner .hint-label {
+    -fx-font-size: .85em;
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+.showcase .hint-banner .hint-icon {
+    -fx-icon-size: 16px;
+    -fx-icon-color: -color-fg-emphasis;
+}
+
+.showcase .hint-banner .hint-close-button {
+    -fx-padding: 2px;
+    -fx-background-color: transparent;
+}
+
+.showcase .hint-banner .hint-close-button:hover,
+.showcase .hint-banner .hint-close-button:armed {
+    -fx-background-color: rgba(255, 255, 255, .25);
+}
+
+.showcase .hint-banner .hint-close-button .ikonli-font-icon {
+    -fx-icon-size: 12px;
+    -fx-icon-color: -color-fg-emphasis;
+}
+
+.showcase .hint-banner .hint-link {
+    -fx-font-size: .85em;
+    -fx-padding: 0;
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+/* ------------------------------------------------------------------
+ * Left-hand side: the list of controls, framed by a border so that it reaches from the top
+ * to the bottom of the window.
+ */
+.showcase .left-side {
+    -fx-background-color: -color-border-default, -color-bg-default;
+    -fx-background-insets: 0, 1px;
+    -fx-padding: 1px;
+}
+
+.showcase .left-side .tree-view {
+    -fx-background-color: transparent;
+    -fx-fixed-cell-size: 22px;
+    /* the first and the last cell have to touch the border of the surrounding box */
+    -fx-padding: 0;
+}
+
+.showcase .left-side .tree-cell {
+    -fx-padding: 0 4px 0 0;
+}
+
+/* the tree cell skin centers the disclosure node within its own preferred height and not
+ * within the height of the cell, hence the node has to be as high as the cell itself
+ */
+.showcase .left-side .tree-cell > .tree-disclosure-node {
+    -fx-padding: 0 8px 0 6px;
+    -fx-pref-height: 22px;
+    -fx-alignment: center;
+}
+
+.showcase .left-side .tree-cell.category-cell {
+    -fx-font-weight: bold;
+    -fx-padding: 0;
+}
+
+.showcase .left-side .tree-cell.no-demo-cell {
+    -fx-opacity: .7;
+}
+
+/* ------------------------------------------------------------------
+ * Right-hand side: the manual, framed by the same border as the list of controls on the
+ * left-hand side.
+ */
+.showcase .manual-pane {
+    -fx-background-color: -color-border-default, -color-bg-default;
+    -fx-background-insets: 0, 1px;
+    -fx-padding: 1px;
+}
+
+/* round floating action buttons in the lower right corner of the manual */
+.showcase .manual-pane .action-box {
+    -fx-spacing: 12px;
+    -fx-padding: 20px;
+}
+
+.showcase .manual-pane .fab {
+    -fx-min-width: 66px;
+    -fx-min-height: 66px;
+    -fx-pref-width: 66px;
+    -fx-pref-height: 66px;
+    -fx-max-width: 66px;
+    -fx-max-height: 66px;
+    -fx-background-radius: 33px;
+    -fx-border-radius: 33px;
+    -fx-padding: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, .35), 12, 0, 0, 4);
+}
+
+.showcase .manual-pane .fab .ikonli-font-icon {
+    -fx-icon-size: 30px;
+}
+
+.showcase .manual-pane .placeholder-label {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: 1.1em;
+}
+
+/* the container wrapping the user interface of a demo that is shown as an overlay */
+.demo-container {
+    -fx-background-color: -color-bg-default;
+}
+
+.dialog-pane > .content-pane.demo-dialog > .vbox > .content {
+    -fx-padding: 0;
+}
+
+/* the dialogs get a border so that they stand out from the dimmed background behind them */
+.showcase .dialog-pane > .content-pane {
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+}
+
+/* ------------------------------------------------------------------
+ * Source code drawer
+ *
+ * The drawer slides in over the content area and shows the source code of the demo application
+ * of the currently selected control. The code is rendered by MDFX, which applies its own
+ * syntax highlighting theme. MDFX ships its styling as a user agent stylesheet, hence the
+ * rules below win over it.
+ * ------------------------------------------------------------------ */
+
+.showcase .drawer-stackpane > .drawer {
+    -fx-background-color: -color-border-default, -color-bg-default;
+    -fx-background-insets: 0, 1px;
+}
+
+.showcase .drawer-stackpane > .drawer > .top > .header > .title-label {
+    -fx-text-fill: -color-fg-default;
+    -fx-font-size: 1.3em;
+}
+
+.showcase .drawer-stackpane > .drawer > .top > .header > .tool-bar > .container > .button {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+.showcase .source-scroll-pane,
+.showcase .source-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.showcase .source-view {
+    -fx-padding: 10px;
+    -mdfx-code-block-border: -color-border-default;
+    -mdfx-code-block-background: -color-bg-subtle;
+    -mdfx-font-color: -color-fg-default;
+}
+
+.showcase .source-view .markdown-text {
+    -fx-font-size: 1em;
+}
+
+/* the source code is displayed with the font that IntelliJ IDEA uses for its editor */
+.showcase .source-view .markdown-code-block > .code-text-flow,
+.showcase .source-view .markdown-code {
+    -fx-font-family: "JetBrains Mono";
+    -fx-font-size: .9em;
+}
+
+/* MDFX resolves the code theme as a classpath resource. Without an explicit value it uses its
+ * light theme, which is unreadable on the dark background of a dark AtlantaFX theme. An invalid
+ * value makes MDFX fall back to unhighlighted plain black text, hence the full path is required.
+ */
+.showcase.dark-theme .source-view .markdown-code-block {
+    -mdfx-code-theme: "/one/jpro/platform/mdfx/themes/github-dark-default.json";
+}
+
+/* ------------------------------------------------------------------
+ * Scroll bars
+ *
+ * The AtlantaFX themes round the thumbs of the scroll bars, which does not fit the rectangular
+ * look of the showcase, hence the rounding is removed for all scroll bars of the application,
+ * no matter which theme is currently active.
+ * ------------------------------------------------------------------ */
+
+.scroll-bar > .thumb {
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+}
+
+/* ------------------------------------------------------------------
+ * Standard JavaFX theme (Modena)
+ *
+ * The showcase and the PDF view are styled with the color variables of AtlantaFX. Those
+ * variables do not exist when the standard JavaFX theme is active, in which case all rules
+ * using them would simply be dropped and the application would end up without any styling at
+ * all. The block below therefore maps the variables to the standard Modena colors. It is only
+ * applied when the "modena-active" style class is present, hence it never interferes with the
+ * definitions coming from AtlantaFX.
+ * ------------------------------------------------------------------ */
+
+.showcase.modena-active {
+    -color-bg-default: -fx-control-inner-background;
+    -color-bg-subtle: -fx-background;
+    -color-border-default: -fx-box-border;
+    -color-default-bg: -fx-background;
+
+    -color-fg-default: -fx-text-background-color;
+    -color-fg-muted: derive(-fx-text-background-color, 45%);
+    -color-fg-emphasis: white;
+
+    -color-accent-emphasis: -fx-accent;
+    -color-accent-fg: derive(-fx-accent, -30%);
+    /* muted and subtle are used as background tints, e.g. for the thumbnail bar of the PDF
+     * view, hence they have to stay very light
+     */
+    -color-accent-muted: derive(-fx-accent, 85%);
+    -color-accent-subtle: derive(-fx-accent, 92%);
+
+    -color-danger-muted: #f8d7da;
+    -color-warning-emphasis: #bf8700;
+    -color-neutral-emphasis-plus: #24292f;
+
+    -color-success-fg: #2da44e;
+    -color-warning-fg: #bf8700;
+    -color-danger-fg: #cf222e;
+
+    /* used by the glass panes, normally defined by the AtlantaFX support of GemsFX */
+    -color-dark: #1e1e1e;
+}
+
+/* AtlantaFX style classes such as "flat" or "button-icon" have no meaning in Modena, hence the
+ * buttons of the header bar have to be flattened by hand
+ */
+.showcase.modena-active .showcase-header-bar .theme-menu-button,
+.showcase.modena-active .showcase-header-bar .mode-button,
+.showcase.modena-active .showcase-header-bar .welcome-button {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4px;
+    -fx-border-color: transparent;
+    -fx-effect: null;
+}
+
+.showcase.modena-active .showcase-header-bar .theme-menu-button:hover,
+.showcase.modena-active .showcase-header-bar .theme-menu-button:showing,
+.showcase.modena-active .showcase-header-bar .mode-button:hover,
+.showcase.modena-active .showcase-header-bar .mode-button:armed,
+.showcase.modena-active .showcase-header-bar .welcome-button:hover,
+.showcase.modena-active .showcase-header-bar .welcome-button:armed {
+    -fx-background-color: derive(-fx-background, -12%);
+}
+
+.showcase.modena-active .showcase-header-bar .theme-menu-button:disabled,
+.showcase.modena-active .showcase-header-bar .mode-button:disabled,
+.showcase.modena-active .showcase-header-bar .welcome-button:disabled {
+    -fx-background-color: transparent;
+}
+
+/* AtlantaFX draws the disclosure arrow with an unscaled shape, Modena scales the shape to the
+ * size of the arrow region. Since the disclosure node is stretched to the height of the tree
+ * cell (see above), the Modena arrow would be stretched along with it, hence the scaling has
+ * to be switched off.
+ */
+.showcase.modena-active .left-side .tree-cell > .tree-disclosure-node > .arrow {
+    -fx-scale-shape: false;
+}
+
+/* the "accent" and "button-circle" style classes of AtlantaFX do not exist in Modena either */
+.showcase.modena-active .manual-pane .fab .ikonli-font-icon {
+    -fx-icon-color: -fx-text-background-color;
+}
+
+.showcase.modena-active .manual-pane .fab.accent {
+    -fx-background-color: -fx-accent;
+}
+
+.showcase.modena-active .manual-pane .fab.accent:hover {
+    -fx-background-color: derive(-fx-accent, -10%);
+}
+
+.showcase.modena-active .manual-pane .fab.accent .ikonli-font-icon {
+    -fx-icon-color: white;
+}
+
+/* the "flat" and "button-icon" style classes of AtlantaFX have no meaning in Modena either */
+.showcase.modena-active .hint-banner .hint-close-button {
+    -fx-background-insets: 0;
+    -fx-background-radius: 4px;
+    -fx-border-color: transparent;
+    -fx-effect: null;
+}
+
+/* ------------------------------------------------------------------
+ * Status bar at the bottom of the window
+ * ------------------------------------------------------------------ */
+
+.showcase .status-bar {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+    -fx-padding: 8px 10px 8px 10px;
+}
+
+.showcase .status-bar .status-label {
+    -fx-text-fill: -color-fg-muted;
+    -fx-font-size: .9em;
+}
+
+.showcase .status-bar .open-in-window-box {
+    -fx-font-size: .9em;
+}
+
+.showcase .status-bar .themes-link {
+    -fx-font-size: .9em;
+    -fx-padding: 0;
+}
+
+/* the glass panes covering the header bar and the status bar have to use the same color as the
+ * glass pane of the dialog pane, which is defined by the AtlantaFX support of GemsFX
+ */
+.showcase .glass-pane-wrapper > .glass-pane {
+    -fx-background-color: -color-dark;
+}
+
+/* ------------------------------------------------------------------
+ * Welcome page
+ *
+ * The welcome page covers the entire window at startup. Stylized mockups of user interface
+ * elements rain down the window in an endless loop while the foreground presents the logo, a
+ * tagline, some statistics, and the button that reveals the actual showcase.
+ * ------------------------------------------------------------------ */
+
+.showcase .welcome-pane {
+    -fx-background-color: -color-bg-default;
+}
+
+/* the welcome page has its own (transparent) header bar so that the window buttons remain
+ * available while the page covers the header bar of the showcase
+ */
+.showcase .welcome-pane .welcome-header-bar {
+    -fx-background-color: transparent;
+}
+
+.showcase .welcome-pane .welcome-header-bar .header-button-group > .container {
+    -fx-alignment: center-left;
+}
+
+/* The raining user interface graphics. The graphics themselves are light, hence they need to
+ * be far more opaque on a light background than on a dark one in order to be visible at all.
+ * The animation picks a fixed opacity per graphic from the range defined here.
+ */
+.showcase .welcome-pane .control-rain {
+    -fx-min-item-opacity: .55;
+    -fx-max-item-opacity: .9;
+}
+
+.showcase.dark-theme .welcome-pane .control-rain {
+    -fx-min-item-opacity: .2;
+    -fx-max-item-opacity: .45;
+}
+
+/* the shadow lifts the graphics off the background of the page */
+.showcase .welcome-pane .control-rain-item {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, .25), 14, 0, 0, 5);
+}
+
+.showcase.dark-theme .welcome-pane .control-rain-item {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, .5), 16, 0, 0, 6);
+}
+
+/* the foreground card with the logo, the texts, and the call-to-action button */
+.showcase .welcome-pane .welcome-content {
+    -fx-background-color: -color-border-default, -color-bg-default;
+    -fx-background-insets: 0, 1px;
+    -fx-background-radius: 16px, 15px;
+    -fx-padding: 50px 70px;
+    -fx-spacing: 14px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, .3), 30, 0, 0, 8);
+}
+
+.showcase .welcome-pane .welcome-title {
+    -fx-font-size: 3em;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.showcase .welcome-pane .welcome-tagline {
+    -fx-font-size: 1.3em;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.showcase .welcome-pane .welcome-stats {
+    -fx-font-size: 1em;
+    -fx-text-fill: -color-accent-fg;
+    -fx-padding: 0 0 10px 0;
+}
+
+.showcase .welcome-pane .welcome-cta {
+    -fx-font-size: 1.2em;
+    -fx-padding: 10px 26px;
+    -fx-graphic-text-gap: 10px;
+}
+
+.showcase .welcome-pane .welcome-cta .ikonli-font-icon {
+    -fx-icon-size: 20px;
+    -fx-icon-color: -color-fg-emphasis;
+}
+
+.showcase .welcome-pane .welcome-do-not-show-box {
+    -fx-font-size: .85em;
+    -fx-text-fill: -color-fg-muted;
+    -fx-padding: 14px 0 0 0;
+}
+
+/* fallbacks for the standard JavaFX theme, where the AtlantaFX style classes have no effect */
+.showcase.modena-active .welcome-pane .welcome-cta {
+    -fx-background-color: -fx-accent;
+    -fx-text-fill: white;
+}
+
+.showcase.modena-active .welcome-pane .welcome-cta:hover {
+    -fx-background-color: derive(-fx-accent, -10%);
+}
+
+.showcase.modena-active .welcome-pane .welcome-cta .ikonli-font-icon {
+    -fx-icon-color: white;
+}

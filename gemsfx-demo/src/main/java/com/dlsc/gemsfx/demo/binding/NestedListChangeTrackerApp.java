@@ -3,7 +3,7 @@ package com.dlsc.gemsfx.demo.binding;
 import com.dlsc.gemsfx.Spacer;
 import com.dlsc.gemsfx.binding.NestedListChangeTracker;
 import com.dlsc.gemsfx.binding.TransformedNestedListBinding;
-import javafx.application.Application;
+import com.dlsc.gemsfx.demo.GemApplication;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * student has a list of scores. We create a binding that calculates the total and average score of
  * all students.
  */
-public class NestedListChangeTrackerApp extends Application {
+public class NestedListChangeTrackerApp extends GemApplication {
 
     private final Random random = new Random();
     private ListView<ObservableList<Number>> listView;
@@ -37,6 +37,8 @@ public class NestedListChangeTrackerApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         scores = FXCollections.observableArrayList();
         scores.addAll(FXCollections.observableArrayList(80, 90, 85), FXCollections.observableArrayList(70, 75, 60));
 
@@ -67,6 +69,7 @@ public class NestedListChangeTrackerApp extends Application {
         primaryStage.setTitle("Student Score History");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
+
         primaryStage.show();
     }
 
@@ -78,7 +81,11 @@ public class NestedListChangeTrackerApp extends Application {
             sumLabel2.setText("ChangeTracker:\tdisposed");
         });
         HBox hBox = new HBox(sumLabel2, new Spacer(), disposeButton);
-        hBox.setStyle("-fx-border-radius: 5px;-fx-border-color: lightgrey;-fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        if (Boolean.getBoolean("atlantafx")) {
+            hBox.setStyle("-fx-border-radius: 5px;-fx-border-color: -color-border-default; -fx-background-color: -color-bg-inset; -fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        } else {
+            hBox.setStyle("-fx-border-radius: 5px;-fx-border-color: lightgrey;-fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        }
         return hBox;
     }
 
@@ -92,7 +99,11 @@ public class NestedListChangeTrackerApp extends Application {
         });
 
         HBox hBox = new HBox(sumLabel, new Spacer(), disposeButton);
-        hBox.setStyle("-fx-border-radius: 5px;-fx-border-color: lightgrey;-fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        if (Boolean.getBoolean("atlantafx")) {
+            hBox.setStyle("-fx-border-radius: 5px;-fx-border-color: -color-border-default; -fx-background-color: -color-bg-inset; -fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        } else {
+            hBox.setStyle("-fx-border-radius: 5px;-fx-border-color: lightgrey;-fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        }
         return hBox;
     }
 
@@ -122,7 +133,6 @@ public class NestedListChangeTrackerApp extends Application {
                 listView.refresh();
             }
         });
-
 
         return new HBox(10, addButton, removeButton, updateButton);
     }

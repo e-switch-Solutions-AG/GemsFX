@@ -1,5 +1,6 @@
 package com.dlsc.gemsfx;
 
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -9,6 +10,7 @@ import javafx.beans.property.StringProperty;
 import javafx.css.PseudoClass;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -22,6 +24,7 @@ import javafx.scene.input.MouseButton;
 
 import java.util.Objects;
 import java.util.function.Supplier;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * An enhanced label that allows for selecting the (whole) label and copying to the clipboard
@@ -31,20 +34,39 @@ public class EnhancedLabel extends Label {
 
     private static final PseudoClass SELECTED_PSEUDO_CLASS = PseudoClass.getPseudoClass("selected");
 
+    /**
+     * Constructs a new enhanced label.
+     */
     public EnhancedLabel() {
         init();
     }
 
+    /**
+     * Constructs a new enhanced label with the given text.
+     *
+     * @param text the label text
+     */
     public EnhancedLabel(String text) {
         super(text);
         init();
     }
 
+    /**
+     * Constructs a new enhanced label with the given text and graphic.
+     *
+     * @param text the label text
+     * @param node the label graphic
+     */
     public EnhancedLabel(String text, Node node) {
         super(text, node);
         init();
     }
 
+    /**
+     * Returns the stylesheet used by this control.
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(EnhancedLabel.class.getResource("enhanced-label.css")).toExternalForm();
@@ -52,6 +74,7 @@ public class EnhancedLabel extends Label {
 
     private void init() {
         getStyleClass().add("enhanced-label");
+        AccessibilityUtil.setRole(this, AccessibleRole.TEXT);
 
         setFocusTraversable(true);
 
@@ -154,7 +177,7 @@ public class EnhancedLabel extends Label {
         this.selected.set(selected);
     }
 
-    private final StringProperty copyMenuItemText = new SimpleStringProperty(this, "copyMenuItemText", "Copy text");
+    private final StringProperty copyMenuItemText = new SimpleStringProperty(this, "copyMenuItemText", ResourceBundleManager.getString(ResourceBundleManager.BundleType.ENHANCED_LABEL, "context.copy-text", "Copy text"));
 
     public final String getCopyMenuItemText() {
         return copyMenuItemText.get();

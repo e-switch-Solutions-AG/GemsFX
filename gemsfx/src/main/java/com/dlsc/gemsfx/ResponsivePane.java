@@ -1,15 +1,24 @@
 package com.dlsc.gemsfx;
 
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ObjectPropertyBase;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
-import javafx.css.*;
+import javafx.css.CssMetaData;
+import javafx.css.PseudoClass;
+import javafx.css.Styleable;
+import javafx.css.StyleableDoubleProperty;
+import javafx.css.StyleableObjectProperty;
+import javafx.css.StyleableProperty;
 import javafx.css.converter.EnumConverter;
 import javafx.css.converter.SizeConverter;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Node;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,8 +34,17 @@ import java.util.Objects;
  * Similarly, if the sidebar is positioned at the TOP or BOTTOM, its visibility will be adjusted based on the height of the pane.
  * However, it is also possible to force the sidebar to be displayed regardless of the window size.
  *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-gap}</td><td>{@code Double}</td><td>Gap between sidebar and main content area.</td></tr>
+ *     <tr><td>{@code -fx-side}</td><td>{@code Side}</td><td>The side on which the sidebar is displayed.</td></tr>
+ *   </tbody>
+ * </table>
  */
-public class ResponsivePane extends Pane {
+public class ResponsivePane extends StackPane {
 
     private static final Side DEFAULT_SIDE = Side.LEFT;
 
@@ -55,6 +73,9 @@ public class ResponsivePane extends Pane {
 
     private final GlassPane glassPane = new GlassPane();
 
+    /**
+     * Constructs a new responsive pane.
+     */
     public ResponsivePane() {
         super();
 
@@ -77,6 +98,11 @@ public class ResponsivePane extends Pane {
 
     private ObjectProperty<Node> content;
 
+    /**
+     * The main content node displayed next to the active sidebar.
+     *
+     * @return the content property
+     */
     public final ObjectProperty<Node> contentProperty() {
         if (content == null) {
             content = new ResponsivePane.NodeProperty("content");
@@ -92,6 +118,9 @@ public class ResponsivePane extends Pane {
         return content == null ? null : content.get();
     }
 
+    /**
+     * The compact sidebar node shown when there is not enough space for the large sidebar.
+     */
     public ObjectProperty<Node> smallSidebar;
 
     public final ObjectProperty<Node> smallSidebarProperty() {
@@ -109,6 +138,9 @@ public class ResponsivePane extends Pane {
         return smallSidebar == null ? null : smallSidebar.get();
     }
 
+    /**
+     * The large sidebar node shown when enough space is available or display is forced.
+     */
     public ObjectProperty<Node> largeSidebar;
 
     public final ObjectProperty<Node> largeSidebarProperty() {
@@ -137,6 +169,8 @@ public class ResponsivePane extends Pane {
      * When set to true, the large sidebar will cover the small sidebar.
      * When set to false, the large sidebar will position itself next to the small sidebar without overlaying, ensuring both sidebars are visible
      * and accessible to the user.
+     *
+     * @return the large-sidebar-covers-small property
      */
     public final BooleanProperty largeSidebarCoversSmallProperty() {
         if (largeSidebarCoversSmall == null) {
@@ -162,6 +196,8 @@ public class ResponsivePane extends Pane {
 
     /**
      * This property, when value is true, forces the display of the large sidebar even when the small sidebar is visible.
+     *
+     * @return the force-large-sidebar-display property
      */
     public final BooleanProperty forceLargeSidebarDisplayProperty() {
         if (forceLargeSidebarDisplay == null) {
@@ -181,6 +217,16 @@ public class ResponsivePane extends Pane {
 
     private ObjectProperty<Side> side;
 
+    /**
+     * Controls the side on which the sidebar (content area) is displayed relative to the main content.
+     * <p>
+     * Can be set via CSS using the {@code -fx-side} property.
+     * Valid values are: {@code top}, {@code bottom}, {@code left}, {@code right}.
+     * The default value is {@code left}.
+     * </p>
+     *
+     * @return the side property
+     */
     public final ObjectProperty<Side> sideProperty() {
         if (side == null) {
             side = new StyleableObjectProperty<>(DEFAULT_SIDE) {
@@ -193,7 +239,7 @@ public class ResponsivePane extends Pane {
 
                 @Override
                 public Object getBean() {
-                    return this;
+                    return ResponsivePane.this;
                 }
 
                 @Override
@@ -219,16 +265,26 @@ public class ResponsivePane extends Pane {
         pseudoClassStateChanged(BOTTOM_PSEUDOCLASS, currentSide == Side.BOTTOM);
     }
 
-    public Side getSide() {
+    public final Side getSide() {
         return side == null ? DEFAULT_SIDE : side.get();
     }
 
-    public void setSide(Side side) {
+    public final void setSide(Side side) {
         sideProperty().set(side);
     }
 
     private DoubleProperty gap;
 
+    /**
+     * The gap between the sidebar and the main content area.
+     * <p>
+     * Can be set via CSS using the {@code -fx-gap} property.
+     * Valid values are: positive numbers.
+     * The default value is {@code 0}.
+     * </p>
+     *
+     * @return the gap property
+     */
     public final DoubleProperty gapProperty() {
         if (gap == null) {
             gap = new StyleableDoubleProperty(0d) {
@@ -240,7 +296,7 @@ public class ResponsivePane extends Pane {
 
                 @Override
                 public Object getBean() {
-                    return this;
+                    return ResponsivePane.this;
                 }
 
                 @Override
@@ -257,11 +313,11 @@ public class ResponsivePane extends Pane {
         return gap;
     }
 
-    public double getGap() {
+    public final double getGap() {
         return gap == null ? 0d : gap.get();
     }
 
-    public void setGap(double gap) {
+    public final void setGap(double gap) {
         gapProperty().set(gap);
     }
 
@@ -307,6 +363,11 @@ public class ResponsivePane extends Pane {
         }
     }
 
+    /**
+     * Returns the CSS metadata for this class.
+     *
+     * @return the CSS metadata for this class
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return StyleableProperties.STYLEABLES;
     }
@@ -568,7 +629,7 @@ public class ResponsivePane extends Pane {
 
         @Override
         public Object getBean() {
-            return this;
+            return ResponsivePane.this;
         }
 
         @Override

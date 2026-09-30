@@ -27,6 +27,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.util.Callback;
 import javafx.util.StringConverter;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -62,7 +63,8 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
      */
     public NotificationView(S notification) {
         this.notification = Objects.requireNonNull(notification);
-        getStyleClass().add("notification-view");
+        updateStyle(notification);
+        notification.typeProperty().addListener(it -> updateStyle(notification));
 
         setPickOnBounds(false);
         setMinHeight(Region.USE_PREF_SIZE);
@@ -105,6 +107,32 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
         updateStyleClass();
     }
 
+    private void updateStyle(S notification) {
+        getStyleClass().setAll("notification-view");
+        switch (notification.getType()) {
+            case INFO:
+                getStyleClass().add("info");
+                break;
+            case WARNING:
+                getStyleClass().add("warning");
+                break;
+            case ERROR:
+                getStyleClass().add("danger");
+                break;
+            case SUCCESS:
+                getStyleClass().add("success");
+                break;
+            default:
+                throw new IllegalStateException("Unexpected notification type: " + notification.getType());
+        }
+    }
+
+    /**
+     * Computes the preferred height of the notification view.
+     *
+     * @param width the width used for the computation
+     * @return the preferred height
+     */
     @Override
     protected double computePrefHeight(double width) {
         double h = contentPane.prefHeight(width - getInsets().getLeft() - getInsets().getRight());
@@ -120,10 +148,36 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
         return h;
     }
 
+    /**
+     * Computes the minimum height of the notification view.
+     *
+     * @param width the width used for the computation
+     * @return the minimum height
+     */
+    @Override
+    protected double computeMinHeight(double width) {
+        return computePrefHeight(width);
+    }
+
+    /**
+     * Computes the maximum height of the notification view.
+     *
+     * @param width the width used for the computation
+     * @return the maximum height
+     */
+    @Override
+    protected double computeMaxHeight(double width) {
+        return computePrefHeight(width);
+    }
+
+    /**
+     * Lays out the content pane and the optional stacked notifications.
+     */
     @Override
     protected void layoutChildren() {
         double width = getWidth() - getInsets().getLeft() - getInsets().getRight();
         double ph = contentPane.prefHeight(width);
+
         contentPane.resizeRelocate(getInsets().getLeft(), getInsets().getTop(), width, ph);
 
         if (stackNotification1.isVisible()) {
@@ -189,7 +243,7 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
      * An (optional) detailed UI that can be revealed interactively by the user.
      * Example: a map view that shows the location of a meeting scheduled in a calendar.
      *
-     * @return the optional graphic
+     * @return the optional content property
      */
     public final ObjectProperty<Node> contentProperty() {
         return content;
@@ -205,6 +259,11 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
         return showContent.get();
     }
 
+    /**
+     * Determines whether the detailed content node is currently shown.
+     *
+     * @return the showContent property
+     */
     public final BooleanProperty showContentProperty() {
         return showContent;
     }
@@ -214,6 +273,12 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
     }
 
     private static final StringConverter<ZonedDateTime> DEFAULT_TIME_CONVERTER = new StringConverter<>() {
+        /**
+         * Converts the given date and time into a human-readable text.
+         *
+         * @param dateTime the date and time to convert
+         * @return the converted text
+         */
         @Override
         public String toString(ZonedDateTime dateTime) {
             if (dateTime != null) {
@@ -222,16 +287,16 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
                     if (between.toHours() > 2) {
                         return DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).format(dateTime.toLocalTime());
                     } else if (between.toHours() > 0) {
-                        return MessageFormat.format("{0}{1}", between.toHours(), ResourceBundleManager.getString(ResourceBundleManager.Type.NOTIFICATION_VIEW, "time.hours.ago"));
+                        return MessageFormat.format("{0}{1}", between.toHours(), ResourceBundleManager.getString(ResourceBundleManager.BundleType.NOTIFICATION_VIEW, "time.hours.ago"));
                     } else if (between.toMinutes() > 0) {
-                        return MessageFormat.format("{0}{1}", between.toMinutes(), ResourceBundleManager.getString(ResourceBundleManager.Type.NOTIFICATION_VIEW, "time.minutes.ago"));
+                        return MessageFormat.format("{0}{1}", between.toMinutes(), ResourceBundleManager.getString(ResourceBundleManager.BundleType.NOTIFICATION_VIEW, "time.minutes.ago"));
                     } else {
-                        return ResourceBundleManager.getString(ResourceBundleManager.Type.NOTIFICATION_VIEW, "time.now");
+                        return ResourceBundleManager.getString(ResourceBundleManager.BundleType.NOTIFICATION_VIEW, "time.now");
                     }
                 } else if (between.toDays() == 1) {
-                    return MessageFormat.format("{0}, {1}", ResourceBundleManager.getString(ResourceBundleManager.Type.NOTIFICATION_VIEW, "time.yesterday"), SHORT_TIME_FORMATTER.format(dateTime.toLocalTime()));
+                    return MessageFormat.format("{0}, {1}", ResourceBundleManager.getString(ResourceBundleManager.BundleType.NOTIFICATION_VIEW, "time.yesterday"), SHORT_TIME_FORMATTER.format(dateTime.toLocalTime()));
                 } else if (between.toDays() < 7) {
-                    return MessageFormat.format("{0} {1}", between.toDays(), ResourceBundleManager.getString(ResourceBundleManager.Type.NOTIFICATION_VIEW, "time.days.ago"));
+                    return MessageFormat.format("{0} {1}", between.toDays(), ResourceBundleManager.getString(ResourceBundleManager.BundleType.NOTIFICATION_VIEW, "time.days.ago"));
                 } else {
                     return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).format(dateTime);
                 }
@@ -239,6 +304,12 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
             return "";
         }
 
+        /**
+         * Converts the given text back into a date and time.
+         *
+         * @param string the text to convert
+         * @return always {@code null}
+         */
         @Override
         public ZonedDateTime fromString(String string) {
             return null;
@@ -261,6 +332,9 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
     public final ObjectProperty<StringConverter<ZonedDateTime>> timeConverterProperty() {
         if (timeConverter == null) {
             timeConverter = new SimpleObjectProperty<>(this, "timeConverter", DEFAULT_TIME_CONVERTER) {
+                /**
+                 * Updates the date and time label after the converter changes.
+                 */
                 @Override
                 protected void invalidated() {
                     updateDateAndTimeLabel();
@@ -274,7 +348,10 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
         timeConverterProperty().set(timeConverter);
     }
 
-    public class ContentPane extends BorderPane {
+    /**
+     * The pane used to render the notification content and actions.
+     */
+    public class ContentPane extends HBox {
 
         private final StackPane closeIconWrapper;
         private final Label timeLabel;
@@ -284,13 +361,22 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
 
         private FadeTransition fadeTransition;
 
+        /**
+         * Constructs a new content pane.
+         */
         public ContentPane() {
             getStyleClass().add("content");
 
-            setMinHeight(Region.USE_PREF_SIZE);
             setPickOnBounds(false);
 
-            leftProperty().bind(graphicProperty());
+            graphicProperty().addListener((observable, oldValue, newValue) -> {
+                if (oldValue != null) {
+                    getChildren().remove(oldValue);
+                }
+                if (newValue != null) {
+                    getChildren().add(0, newValue);
+                }
+            });
 
             Label titleLabel = new Label();
             titleLabel.textProperty().bind(notification.titleProperty());
@@ -341,6 +427,7 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
             descriptionLabel.textProperty().bind(notification.summaryProperty());
             descriptionLabel.getStyleClass().add("description-label");
             descriptionLabel.setWrapText(true);
+            descriptionLabel.setMinHeight(Region.USE_PREF_SIZE);
 
             HBox actionsBox = new HBox();
             actionsBox.getStyleClass().add("actions-box");
@@ -354,13 +441,13 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
             center.setFillWidth(true);
             center.setAlignment(Pos.CENTER_LEFT);
             center.getStyleClass().add("text-container");
-            center.setMinHeight(Region.USE_PREF_SIZE);
-            setCenter(center);
+            HBox.setHgrow(center, Priority.ALWAYS);
+            getChildren().add(center);
 
             contentProperty().addListener(it -> updateCenterNode(center));
             showContentProperty().addListener(it -> updateCenterNode(center));
 
-            Label clearAllLabel = new Label(ResourceBundleManager.getString(ResourceBundleManager.Type.NOTIFICATION_VIEW, "group.clear.all"));
+            Label clearAllLabel = new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.NOTIFICATION_VIEW, "group.clear.all"));
             clearAllLabel.getStyleClass().add("clear-all");
             clearAllLabel.setMouseTransparent(true);
 
@@ -372,6 +459,7 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
              * specified via CSS. Only one of the two is visible at any time.
              */
             closeIconWrapper = new StackPane(closeIcon, clearAllLabel);
+            closeIconWrapper.setManaged(false);
             closeIconWrapper.setPickOnBounds(false);
             closeIconWrapper.setOpacity(0);
             closeIconWrapper.getStyleClass().add("close-icon-wrapper");
@@ -379,6 +467,7 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
             closeIconWrapper.setOnMouseExited(evt -> requestLayout());
             closeIconWrapper.setOnMouseClicked(evt -> {
                 evt.consume();
+                //noinspection rawtypes
                 NotificationGroup group = notification.getGroup();
                 if (group.isExpanded()) {
                     notification.remove();
@@ -439,6 +528,9 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
             }
         }
 
+        /**
+         * Lays out the close icon wrapper in the upper left corner.
+         */
         @Override
         protected void layoutChildren() {
             super.layoutChildren();
@@ -448,6 +540,7 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
             closeIconWrapper.resizeRelocate(0, 0, closeIconWrapper.prefWidth(-1), closeIconWrapper.prefHeight(-1));
         }
 
+        @SuppressWarnings({"rawtypes", "unchecked"})
         private void updateActions(HBox actionsBox) {
             actionsBox.getChildren().clear();
 
@@ -455,6 +548,7 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
             if (!actions.isEmpty()) {
                 actions.forEach(action -> {
                     Button button = new Button();
+                    button.getStyleClass().add("notification-action-button");
                     button.textProperty().bind(action.textProperty());
                     HBox.setHgrow(button, Priority.ALWAYS);
                     button.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
@@ -462,20 +556,23 @@ public class NotificationView<T, S extends Notification<T>> extends StackPane {
                     button.setOnAction(evt -> {
                         fireEvent(new InfoCenterEvent(InfoCenterEvent.HIDE, getNotification()));
 
-                        OnClickBehaviour call = (OnClickBehaviour) action.getOnAction().call(notification);
-                        switch (call) {
-                            case NONE:
-                                break;
-                            case REMOVE:
-                                notification.remove();
-                                break;
-                            case HIDE:
-                                fireEvent(new InfoCenterEvent(InfoCenterEvent.HIDE));
-                                break;
-                            case HIDE_AND_REMOVE:
-                                fireEvent(new InfoCenterEvent(InfoCenterEvent.HIDE));
-                                notification.remove();
-                                break;
+                        Callback onAction = action.getOnAction();
+                        if (onAction != null) {
+                            OnClickBehaviour call = (OnClickBehaviour) onAction.call(notification);
+                            switch (call) {
+                                case NONE:
+                                    break;
+                                case REMOVE:
+                                    notification.remove();
+                                    break;
+                                case HIDE:
+                                    fireEvent(new InfoCenterEvent(InfoCenterEvent.HIDE));
+                                    break;
+                                case HIDE_AND_REMOVE:
+                                    fireEvent(new InfoCenterEvent(InfoCenterEvent.HIDE));
+                                    notification.remove();
+                                    break;
+                            }
                         }
                     });
                     actionsBox.getChildren().add(button);

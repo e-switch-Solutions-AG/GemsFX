@@ -1,22 +1,30 @@
 package com.dlsc.gemsfx.infocenter;
 
-import com.dlsc.gemsfx.skins.InfoCenterPaneSkin;
 import javafx.animation.AnimationTimer;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
+import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
 import javafx.event.WeakEventHandler;
+import javafx.geometry.HorizontalDirection;
+import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.Control;
-import javafx.scene.control.Skin;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.StackPane;
+import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
-import one.jpro.jproutils.treeshowing.TreeShowing;
+import com.dlsc.gemsfx.util.TreeShowing;
 
 /**
  * A pane used for managing a single instance of {@link InfoCenterView}. The pane will show or
@@ -35,9 +43,8 @@ import one.jpro.jproutils.treeshowing.TreeShowing;
  *    InfoCenterPane infoCenterPane = new InfoCenterPane();
  *    StackPane root = new StackPane(infoCenterPane);
  * </pre>
- * </p>
  */
-public class InfoCenterPane extends Control {
+public class InfoCenterPane extends StackPane {
 
     private static final Duration DEFAULT_SLIDE_IN_DURATION = Duration.millis(200);
     private static final Duration DEFAULT_AUTO_HIDE_DURATION = Duration.seconds(5);
@@ -66,6 +73,10 @@ public class InfoCenterPane extends Control {
 
     private final WeakEventHandler<MouseEvent> weakMouseClickedHandler = new WeakEventHandler<>(mouseClickedHandler);
 
+    private final DoubleProperty visibility = new SimpleDoubleProperty(this, "visibility");
+
+    private final Timeline timeline = new Timeline();
+
     /**
      * Constructs a new pane with no content.
      */
@@ -77,6 +88,8 @@ public class InfoCenterPane extends Control {
 
     /**
      * Constructs a new pane with the given content node.
+     *
+     * @param content the content node shown behind the managed {@link InfoCenterView}
      */
     public InfoCenterPane(Node content) {
         getStyleClass().add("info-center-pane");
@@ -194,11 +207,31 @@ public class InfoCenterPane extends Control {
         // monitor the mouse cursor
         infoCenterView.addEventHandler(MouseEvent.MOUSE_ENTERED, evt -> insideInfoCenter.set(true));
         infoCenterView.addEventHandler(MouseEvent.MOUSE_EXITED, evt -> insideInfoCenter.set(false));
-    }
 
-    @Override
-    protected Skin<?> createDefaultSkin() {
-        return new InfoCenterPaneSkin(this);
+        updateChildren();
+
+        InvalidationListener rebuildListener = observable -> updateChildren();
+        contentProperty().addListener(rebuildListener);
+
+        visibility.addListener(it -> requestLayout());
+
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(widthProperty());
+        clip.heightProperty().bind(heightProperty());
+
+        setClip(clip);
+
+        showInfoCenterProperty().addListener(it -> {
+            if (isShowInfoCenter()) {
+                show();
+            } else {
+                hide();
+            }
+        });
+
+        infoCenterView.slideInOriginProperty().bind(Bindings.createObjectBinding(
+                () -> getInfoCenterViewPos().isLeft() ? HorizontalDirection.LEFT : HorizontalDirection.RIGHT,
+                infoCenterViewPosProperty()));
     }
 
     private ObjectProperty<Duration> autoHideDuration;
@@ -231,8 +264,8 @@ public class InfoCenterPane extends Control {
     }
 
     /**
-     * A flag that can be used to pin the info center view so that it will not hide
-     * under any circumstances.
+     * A flag that can be used to pin the info center view so that it will not be
+     * hidden by the pane's auto-hide handling.
      *
      * @return true if the info center view is pinned
      */
@@ -271,11 +304,16 @@ public class InfoCenterPane extends Control {
         autoHideProperty().set(autoHide);
     }
 
+    /**
+     * Returns the managed {@link InfoCenterView} instance.
+     *
+     * @return the managed info center view
+     */
     public final InfoCenterView getInfoCenterView() {
         return infoCenterView;
     }
 
-    private ObjectProperty<Node> content = new SimpleObjectProperty<>(this, "content"); //$NON-NLS-1$
+    private final ObjectProperty<Node> content = new SimpleObjectProperty<>(this, "content"); //$NON-NLS-1$
 
     /**
      * The property that is used to store a reference to the content node. The
@@ -320,6 +358,42 @@ public class InfoCenterPane extends Control {
         slideInDurationProperty().set(duration);
     }
 
+    // info center view position
+
+    private ObjectProperty<InfoCenterViewPos> infoCenterViewPos;
+
+    public final InfoCenterViewPos getInfoCenterViewPos() {
+        return infoCenterViewPos == null ? InfoCenterViewPos.TOP_RIGHT : infoCenterViewPos.get();
+    }
+
+    /**
+     * The position of the {@link InfoCenterView} within this pane. The horizontal
+     * component determines which side the info center slides in from (left or right),
+     * and the vertical component determines whether it is placed at the top, center,
+     * or bottom. The default value is {@link InfoCenterViewPos#TOP_RIGHT}.
+     * <p>
+     * The horizontal component also drives the managed view's
+     * {@link InfoCenterView#slideInOriginProperty()}, so that newly
+     * added notifications slide in from the same side the view is anchored to.
+     *
+     * @return the position of the info center view
+     */
+    public final ObjectProperty<InfoCenterViewPos> infoCenterViewPosProperty() {
+        if (infoCenterViewPos == null) {
+            infoCenterViewPos = new SimpleObjectProperty<>(this, "infoCenterViewPos", InfoCenterViewPos.TOP_RIGHT) {
+                @Override
+                protected void invalidated() {
+                    requestLayout();
+                }
+            };
+        }
+        return infoCenterViewPos;
+    }
+
+    public final void setInfoCenterViewPos(InfoCenterViewPos infoCenterViewPos) {
+        infoCenterViewPosProperty().set(infoCenterViewPos);
+    }
+
     private BooleanProperty showInfoCenter;
 
     public final boolean isShowInfoCenter() {
@@ -340,5 +414,160 @@ public class InfoCenterPane extends Control {
 
     public final void setShowInfoCenter(boolean showInfoCenter) {
         showInfoCenterProperty().set(showInfoCenter);
+    }
+
+    private void show() {
+        timeline.stop();
+        KeyValue keyValue = new KeyValue(visibility, 1);
+        KeyFrame keyFrame = new KeyFrame(getSlideInDuration(), keyValue);
+        timeline.getKeyFrames().setAll(keyFrame);
+        timeline.play();
+    }
+
+    private void hide() {
+        timeline.stop();
+        KeyValue keyValues = new KeyValue(visibility, 0);
+        KeyFrame keyFrame = new KeyFrame(getSlideInDuration(), keyValues);
+        timeline.getKeyFrames().setAll(keyFrame);
+        timeline.play();
+    }
+
+    private void updateChildren() {
+        getChildren().clear();
+
+        if (getContent() != null) {
+            getChildren().add(getContent());
+        }
+
+        if (getInfoCenterView() != null) {
+            getChildren().add(getInfoCenterView());
+        }
+    }
+
+    @Override
+    protected double computeMinWidth(double height) {
+        Node content = getContent();
+
+        if (content != null) {
+            return content.minWidth(height) + getInsets().getLeft() + getInsets().getRight();
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
+    protected double computePrefWidth(double height) {
+        Node content = getContent();
+
+        if (content != null) {
+            return content.prefWidth(height) + getInsets().getLeft() + getInsets().getRight();
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
+    protected double computeMaxWidth(double height) {
+        Node content = getContent();
+
+        if (content != null) {
+            return content.maxWidth(height) + getInsets().getLeft() + getInsets().getRight();
+        } else {
+            return Double.MAX_VALUE;
+        }
+    }
+
+    @Override
+    protected double computeMinHeight(double width) {
+        Node content = getContent();
+
+        if (content != null) {
+            return content.minHeight(width) + getInsets().getTop() + getInsets().getBottom();
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
+    protected double computePrefHeight(double width) {
+        Node content = getContent();
+
+        if (content != null) {
+            return content.prefHeight(width) + getInsets().getTop() + getInsets().getBottom();
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
+    protected double computeMaxHeight(double width) {
+        Node content = getContent();
+
+        if (content != null) {
+            return content.maxHeight(width)  + getInsets().getTop() + getInsets().getBottom();
+        } else {
+            return Double.MAX_VALUE;
+        }
+    }
+
+
+    @Override
+    protected void layoutChildren() {
+        Insets insets = getInsets();
+
+        double w = getWidth();
+        double h = getHeight();
+        double contentX = insets.getLeft();
+        double contentY = insets.getTop();
+        double contentWidth = w - insets.getLeft() - insets.getRight();
+        double contentHeight = h - insets.getTop() - insets.getBottom();
+
+        Node content = getContent();
+        if (content != null) {
+            content.resizeRelocate(contentX, contentY, contentWidth, contentHeight);
+        }
+
+        // special layout for the info center view based on the animation progress / visibility
+        InfoCenterView view = getInfoCenterView();
+        if (view != null) {
+            InfoCenterViewPos position = getInfoCenterViewPos();
+
+            double prefWidth = view.prefWidth(-1);
+            double prefHeight = view.prefHeight(prefWidth);
+            double v = visibility.get();
+            double offset = prefWidth * v;
+
+            double viewX;
+            if (position.isLeft()) {
+                viewX = contentX - prefWidth + offset;
+            } else {
+                viewX = contentX + contentWidth - offset;
+            }
+
+            double viewHeight;
+            if (view.getShowAllGroup() != null) {
+                viewHeight = contentHeight;
+            } else {
+                viewHeight = Math.min(contentHeight, prefHeight);
+            }
+
+            double viewY;
+            switch (position) {
+                case BOTTOM_LEFT:
+                case BOTTOM_RIGHT:
+                    viewY = contentY + contentHeight - viewHeight;
+                    break;
+                case CENTER_LEFT:
+                case CENTER_RIGHT:
+                    viewY = contentY + (contentHeight - viewHeight) / 2;
+                    break;
+                default:
+                    viewY = contentY;
+                    break;
+            }
+
+            view.resizeRelocate(viewX, viewY, prefWidth, viewHeight);
+            view.setVisible(v > 0);
+        }
     }
 }

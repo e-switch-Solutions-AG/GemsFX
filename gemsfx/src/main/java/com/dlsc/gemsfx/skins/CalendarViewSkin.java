@@ -31,11 +31,11 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.WeakChangeListener;
 import javafx.css.PseudoClass;
+import javafx.event.EventHandler;
 import javafx.geometry.HPos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.SkinBase;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -67,7 +67,15 @@ import static java.time.temporal.ChronoField.DAY_OF_WEEK;
 import static javafx.geometry.Pos.CENTER;
 import static javafx.scene.layout.Priority.ALWAYS;
 
-public class CalendarViewSkin extends SkinBase<CalendarView> {
+/**
+ * Skin for the {@link CalendarView} control.
+ * <p>
+ * The skin builds a header with month and year navigation, weekday and week
+ * number rows, and date cells backed by the control selection model. It also
+ * switches to embedded month or year selection views when enabled by the
+ * control.
+ */
+public class CalendarViewSkin extends GemsSkinBase<CalendarView> {
 
     private static final String WEEKDAY_NAME = "weekday-name";
     private static final String TODAY = "today";
@@ -124,6 +132,33 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
 
     private final WeakChangeListener weakWindowShowingListener = new WeakChangeListener(windowShowingListener);
 
+    private final InvalidationListener viewYearMonthChangeListener = evt -> {
+        CalendarView view = getSkinnable();
+        if (displayedYearMonth == null || !displayedYearMonth.equals(view.getYearMonth())) {
+            updateView();
+        }
+    };
+
+    private final InvalidationListener buildViewListener = evt -> buildView();
+
+    private final EventHandler<KeyEvent> keyPressedHandler = evt -> {
+        if (evt.getCode().equals(KeyCode.ESCAPE)) {
+            if (!evt.isConsumed() && !viewMode.get().equals(ViewMode.DATE)) {
+                viewMode.set(ViewMode.DATE);
+                evt.consume();
+            }
+        }
+    };
+
+    private final InvalidationListener updateBodyConstraintsListener = it -> updateBodyConstraints();
+    private final InvalidationListener selectionModelListener = it -> bindSelectionModel(getSkinnable().getSelectionModel());
+    private final InvalidationListener updateStyleClassesListener = it -> updateStyleClasses();
+
+    /**
+     * Creates a skin for the given calendar view.
+     *
+     * @param view the calendar view rendered by this skin
+     */
     public CalendarViewSkin(CalendarView view) {
         super(view);
 
@@ -167,7 +202,11 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
 
         StackPane incrementYearButton = new StackPane(incrementYearArrow);
         incrementYearButton.getStyleClass().add("increment-year-button");
-        incrementYearButton.setOnMouseClicked(evt -> view.setYearMonth(view.getYearMonth().plusYears(1)));
+        incrementYearButton.setOnMouseClicked(evt -> {
+            if (view.getYearMonth() != null) {
+                view.setYearMonth(view.getYearMonth().plusYears(1));
+            }
+        });
         incrementYearButton.disableProperty().bind(view.disableNextYearButtonProperty());
 
         StackPane decrementYearArrow = new StackPane();
@@ -175,7 +214,11 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
 
         StackPane decrementYearButton = new StackPane(decrementYearArrow);
         decrementYearButton.getStyleClass().add("decrement-year-button");
-        decrementYearButton.setOnMouseClicked(evt -> view.setYearMonth(view.getYearMonth().minusYears(1)));
+        decrementYearButton.setOnMouseClicked(evt -> {
+            if (view.getYearMonth() != null) {
+                view.setYearMonth(view.getYearMonth().minusYears(1));
+            }
+        });
         decrementYearButton.disableProperty().bind(view.disablePreviousYearButtonProperty());
 
         VBox yearSpinnerBox = new VBox(incrementYearButton, decrementYearButton);
@@ -192,7 +235,9 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
 
         StackPane previousArrowButton = new StackPane(previousMonthArrow);
         previousArrowButton.getStyleClass().addAll("arrow-button", "previous-month-button");
-        previousArrowButton.setOnMouseClicked(evt -> view.setYearMonth(view.getYearMonth().minusMonths(1)));
+        previousArrowButton.setOnMouseClicked(evt -> {
+            if (view.getYearMonth() != null) view.setYearMonth(view.getYearMonth().minusMonths(1));
+        });
         previousArrowButton.visibleProperty().bind(view.showMonthArrowsProperty().and(view.showMonthProperty()));
         previousArrowButton.managedProperty().bind(previousArrowButton.visibleProperty());
         previousArrowButton.disableProperty().bind(view.disablePreviousMonthButtonProperty());
@@ -202,7 +247,11 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
 
         StackPane nextMonthArrowButton = new StackPane(nextMonthArrow);
         nextMonthArrowButton.getStyleClass().addAll("arrow-button", "next-month-button");
-        nextMonthArrowButton.setOnMouseClicked(evt -> view.setYearMonth(view.getYearMonth().plusMonths(1)));
+        nextMonthArrowButton.setOnMouseClicked(evt -> {
+            if (view.getYearMonth() != null) {
+                view.setYearMonth(view.getYearMonth().plusMonths(1));
+            }
+        });
         nextMonthArrowButton.visibleProperty().bind(view.showMonthArrowsProperty().and(view.showMonthProperty()));
         nextMonthArrowButton.managedProperty().bind(nextMonthArrowButton.visibleProperty());
         nextMonthArrowButton.disableProperty().bind(view.disableNextMonthButtonProperty());
@@ -254,22 +303,17 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
         Spacer rightSpacer = new Spacer();
         rightSpacer.getStyleClass().add("right");
 
-        view.headerLayoutProperty().subscribe(headerLayout -> updateHeader(header, previousArrowButton, leftSpacer, yearSpinnerBox, rightSpacer, nextMonthArrowButton));
+        register(view.headerLayoutProperty(), (obs, oldHeaderLayout, newHeaderLayout) -> updateHeader(header, previousArrowButton, leftSpacer, yearSpinnerBox, rightSpacer, nextMonthArrowButton));
+        updateHeader(header, previousArrowButton, leftSpacer, yearSpinnerBox, rightSpacer, nextMonthArrowButton);
 
-        InvalidationListener updateViewListener = evt -> updateView();
-        view.yearMonthProperty().addListener(evt -> {
-            if (displayedYearMonth == null || !displayedYearMonth.equals(view.getYearMonth())) {
-                updateView();
-            }
-        });
+        register(view.yearMonthProperty(), viewYearMonthChangeListener);
 
-        InvalidationListener buildViewListener = evt -> buildView();
-        view.showWeekNumbersProperty().addListener(buildViewListener);
-        view.showMonthArrowsProperty().addListener(buildViewListener);
-        view.cellFactoryProperty().addListener(buildViewListener);
-        view.markSelectedDaysOfPreviousOrNextMonthProperty().addListener(buildViewListener);
+        register(view.showWeekNumbersProperty(), buildViewListener);
+        register(view.showMonthArrowsProperty(), buildViewListener);
+        register(view.cellFactoryProperty(), buildViewListener);
+        register(view.markSelectedDaysOfPreviousOrNextMonthProperty(), buildViewListener);
 
-        view.showTodayProperty().addListener(updateViewListener);
+        register(view.showTodayProperty(), updateViewListener);
 
         Button todayButton = new Button();
         todayButton.textProperty().bind(view.todayTextProperty());
@@ -302,14 +346,7 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
         yearMonthView.earliestMonthProperty().bind(Bindings.createObjectBinding(() -> view.getEarliestDate() != null ? YearMonth.from(view.getEarliestDate()) : null, view.earliestDateProperty()));
         yearMonthView.latestMonthProperty().bind(Bindings.createObjectBinding(() -> view.getLatestDate() != null ? YearMonth.from(view.getLatestDate()) : null, view.latestDateProperty()));
 
-        view.addEventHandler(KeyEvent.KEY_PRESSED, evt -> {
-            if (evt.getCode().equals(KeyCode.ESCAPE)) {
-                if (!evt.isConsumed() && !viewMode.get().equals(ViewMode.DATE)) {
-                    viewMode.set(ViewMode.DATE);
-                    evt.consume();
-                }
-            }
-        });
+        registerHandler(view, KeyEvent.KEY_PRESSED, keyPressedHandler);
 
         yearView = view.getYearView();
         yearView.earliestYearProperty().bind(Bindings.createObjectBinding(() -> view.getEarliestDate() != null ? Year.from(view.getEarliestDate()) : null, view.earliestDateProperty()));
@@ -327,7 +364,7 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
 
         buildView();
 
-        view.showWeekNumbersProperty().addListener(it -> updateBodyConstraints());
+        register(view.showWeekNumbersProperty(), updateBodyConstraintsListener);
         updateBodyConstraints();
 
         header.setViewOrder(-2000);
@@ -338,7 +375,7 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
         clip.heightProperty().bind(container.heightProperty());
         container.setClip(clip);
 
-        view.selectionModelProperty().addListener(it -> bindSelectionModel(view.getSelectionModel()));
+        register(view.selectionModelProperty(), selectionModelListener);
         bindSelectionModel(view.getSelectionModel());
 
         StackPane stackPane = new StackPane(yearView, yearMonthView, container);
@@ -349,9 +386,8 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
         viewMode.addListener(obs -> updateViewMode());
         updateViewMode();
 
-        InvalidationListener updateStyleClassesListener = it -> updateStyleClasses();
-        view.monthSelectionViewEnabledProperty().addListener(updateStyleClassesListener);
-        view.yearSelectionViewEnabledProperty().addListener(updateStyleClassesListener);
+        register(view.monthSelectionViewEnabledProperty(), updateStyleClassesListener);
+        register(view.yearSelectionViewEnabledProperty(), updateStyleClassesListener);
 
         updateStyleClasses();
     }
@@ -480,7 +516,7 @@ public class CalendarViewSkin extends SkinBase<CalendarView> {
 
         DayOfWeek dayOfWeek = getFirstDayOfWeek();
         for (int i = 0; i < 7; i++) {
-            dayOfWeekLabels[i] = new Label(dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.getDefault()));
+            dayOfWeekLabels[i] = new Label(dayOfWeek.getDisplayName(TextStyle.SHORT_STANDALONE, Locale.getDefault()));
             dayOfWeekLabels[i].setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
             dayOfWeekLabels[i].setAlignment(CENTER);
             dayOfWeekLabels[i].getStyleClass().add(WEEKDAY_NAME);

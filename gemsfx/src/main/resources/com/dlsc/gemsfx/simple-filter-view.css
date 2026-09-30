@@ -1,0 +1,16 @@
+.simple-filter-view {
+    -fx-spacing: 0.416667em;
+}
+
+.simple-filter-view:compact {
+    -fx-spacing: 0;
+}
+
+.simple-filter-view:compact .selection-item > .arrow-button {
+    -fx-background-radius: 0 0 0 0, 0 0 0 0, 0 0 0 0;
+    -fx-background-color: transparent;
+}
+
+.simple-filter-view .check-box {
+    -fx-padding: 0px 5px;
+}

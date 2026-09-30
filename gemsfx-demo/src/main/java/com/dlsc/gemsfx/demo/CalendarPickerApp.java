@@ -2,8 +2,7 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.CalendarPicker;
 import com.dlsc.gemsfx.CustomComboBox;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -18,10 +17,12 @@ import javafx.stage.Stage;
 
 import java.time.LocalDate;
 
-public class CalendarPickerApp extends Application {
+public class CalendarPickerApp extends GemApplication {
 
     @Override
     public void start(Stage stage) {
+        super.start(stage);
+
         CalendarPicker calendarPicker = new CalendarPicker();
         calendarPicker.setValue(LocalDate.now());
 
@@ -56,6 +57,7 @@ public class CalendarPickerApp extends Application {
 
         ComboBox<CustomComboBox.ButtonDisplay> buttonDisplayComboBox = new ComboBox<>();
         buttonDisplayComboBox.getItems().addAll(CustomComboBox.ButtonDisplay.values());
+        buttonDisplayComboBox.setConverter(new EnumStringConverter<>());
         buttonDisplayComboBox.valueProperty().bindBidirectional(calendarPicker.buttonDisplayProperty());
         Label buttonDisplayLabel = new Label("Button Display:");
         HBox buttonDisplayBox = new HBox(10, buttonDisplayLabel, buttonDisplayComboBox);
@@ -69,12 +71,11 @@ public class CalendarPickerApp extends Application {
         vBox.setPadding(new Insets(20));
 
         Scene scene = new Scene(vBox);
-        CSSFX.start();
 
         stage.setTitle("CalendarPicker");
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.centerOnScreen();
+
         stage.show();
     }
 

@@ -4,8 +4,6 @@ import com.dlsc.gemsfx.gridtable.GridTableCell;
 import com.dlsc.gemsfx.gridtable.GridTableColumn;
 import com.dlsc.gemsfx.gridtable.GridTablePropertyValueFactory;
 import com.dlsc.gemsfx.gridtable.GridTableView;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -13,25 +11,31 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import org.scenicview.ScenicView;
 
 import java.util.List;
 import java.util.Random;
 
-public class GridTableViewApp extends Application {
+public class GridTableViewApp extends GemApplication {
 
     private int index;
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         GridTableView<Student> tableView = new GridTableView<>();
         tableView.setMinNumberOfRows(8);
+
+        // simple text for context menu callback
+        tableView.setOnContextMenuForItemRequested(student -> new ContextMenu(new MenuItem("Edit")));
 
         GridTableColumn<Student, String> nameColumn = new GridTableColumn<>("Name");
         GridTableColumn<Student, Integer> mathColumn = new GridTableColumn<>("Math");
@@ -93,6 +97,18 @@ public class GridTableViewApp extends Application {
             }
         });
 
+        CheckBox showHeaderAndFooter = new CheckBox("Show Header / Footer");
+        showHeaderAndFooter.setSelected(false);
+        showHeaderAndFooter.selectedProperty().addListener((ob, ov, selected) -> {
+            if (selected) {
+                tableView.setRowHeaderFactory(student -> new Label("Header for student: " + student.getName()));
+                tableView.setRowFooterFactory(student -> new Label("Footer for student: " + student.getName()));
+            } else {
+                tableView.setRowFooterFactory(null);
+                tableView.setRowHeaderFactory(null);
+            }
+        });
+
         Button btnAdd = new Button("Add");
         btnAdd.setOnAction(event -> {
             Random random = new Random();
@@ -106,10 +122,11 @@ public class GridTableViewApp extends Application {
             }
         });
 
-        Button scenicView = new Button("Scenic View");
-        scenicView.setOnAction(evt -> ScenicView.show(tableView.getScene()));
+        Button scenicView = new Button("Dev Tools");
+        hideInBrowser(scenicView);
+        configureDevToolsButton(scenicView);
 
-        HBox bottom = new HBox(30, artBox, btnAdd, btnRemove, scenicView);
+        HBox bottom = new HBox(30, artBox, showHeaderAndFooter, btnAdd, btnRemove, scenicView);
         bottom.setAlignment(Pos.CENTER);
         bottom.setPadding(new Insets(10));
 
@@ -118,19 +135,22 @@ public class GridTableViewApp extends Application {
         tableView.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
         StackPane stackPane = new StackPane(tableView);
-        stackPane.setStyle("-fx-background-color: grey;");
+        if (Boolean.getBoolean("atlantafx")) {
+            stackPane.setStyle("-fx-background-color: -color-bg-inset;");
+        } else {
+            stackPane.setStyle("-fx-background-color: grey;");
+        }
         StackPane.setAlignment(tableView, Pos.CENTER);
 
         BorderPane pane = new BorderPane(stackPane);
         pane.setBottom(bottom);
 
-        Scene scene = new Scene(pane);
+        Scene scene = new Scene(pane, 750, 580);
+        primaryStage.setTitle("Grid Table View");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
-        primaryStage.centerOnScreen();
-        primaryStage.show();
 
-        CSSFX.start(scene);
+        primaryStage.show();
     }
 
     public static class Student {
@@ -196,4 +216,5 @@ public class GridTableViewApp extends Application {
             this.art = art;
         }
     }
+
 }

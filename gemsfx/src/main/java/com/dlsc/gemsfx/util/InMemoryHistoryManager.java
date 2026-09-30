@@ -8,10 +8,22 @@ package com.dlsc.gemsfx.util;
  */
 public class InMemoryHistoryManager<T> extends HistoryManager<T> {
 
+    /**
+     * Creates an in-memory history manager with an initially empty history.
+     */
+    public InMemoryHistoryManager() {
+    }
+
+    /**
+     * Loads the history.
+     */
     @Override
     protected void loadHistory() {
     }
 
+    /**
+     * Stores the history.
+     */
     @Override
     protected void storeHistory() {
     }

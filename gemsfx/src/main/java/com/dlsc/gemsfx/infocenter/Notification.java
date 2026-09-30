@@ -18,9 +18,8 @@ import java.util.StringJoiner;
  * A pure model object containing the data for a {@link NotificationView}.
  * Notifications can be added to groups ({@link NotificationGroup}).
  *
- * @see NotificationGroup#getNotifications()
- *
  * @param <T> the type of the user object
+ * @see NotificationGroup#getNotifications()
  */
 public class Notification<T> implements Comparable<Notification<T>> {
 
@@ -29,8 +28,8 @@ public class Notification<T> implements Comparable<Notification<T>> {
     /**
      * Constructs a new notification.
      *
-     * @param title the title that will usually be shown in bold
-     * @param summary a summary text of the noteworthy thing that happened
+     * @param title    the title that will usually be shown in bold
+     * @param summary  a summary text of the noteworthy thing that happened
      * @param dateTime the date and time when the noteworthy thing happened
      */
     public Notification(String title, String summary, ZonedDateTime dateTime) {
@@ -42,7 +41,7 @@ public class Notification<T> implements Comparable<Notification<T>> {
     /**
      * Constructs a new notification.
      *
-     * @param title the title that will usually be shown in bold
+     * @param title   the title that will usually be shown in bold
      * @param summary a summary text of the noteworthy thing that happened
      */
     public Notification(String title, String summary) {
@@ -208,18 +207,16 @@ public class Notification<T> implements Comparable<Notification<T>> {
         HIDE_AND_REMOVE
     }
 
+    /**
+     * A callback that determines how the notification and the view will behave when the user clicks
+     * on it. The default behaviour is to hide the view and remove the notification from its group.
+     */
     public final ObjectProperty<Callback<Notification<T>, OnClickBehaviour>> onClick = new SimpleObjectProperty<>(this, "onClick", notification -> OnClickBehaviour.HIDE_AND_REMOVE);
 
     public final Callback<Notification<T>, OnClickBehaviour> getOnClick() {
         return onClick.get();
     }
 
-    /**
-     * A callback that determines how the notification and the view will behave when the user clicks
-     * on it. The default behaviour is to hide the view and remove the notification from its group.
-     *
-     * @return the behaviour upon click (do nothing, remove the notification, hide the view, ....)
-     */
     public final ObjectProperty<Callback<Notification<T>, OnClickBehaviour>> onClickProperty() {
         return onClick;
     }
@@ -228,6 +225,56 @@ public class Notification<T> implements Comparable<Notification<T>> {
         this.onClick.set(onClick);
     }
 
+    /**
+     * The type of a notification.
+     */
+    public enum Type {
+        /**
+         * An informational notification.
+         */
+        INFO,
+
+        /**
+         * A warning notification.
+         */
+        WARNING,
+
+        /**
+         * An error notification.
+         */
+        ERROR,
+
+        /**
+         * A success notification.
+         */
+        SUCCESS;
+    }
+
+    private final ObjectProperty<Type> type = new SimpleObjectProperty<>(this, "type", Type.INFO);
+
+    public final Type getType() {
+        return type.get();
+    }
+
+    /**
+     * Provides an object property containing the type of this notification. The type represents
+     * the category or severity of the notification, such as INFO, WARNING, ERROR, or SUCCESS.
+     *
+     * @return an {@code ObjectProperty} representing the type of the notification
+     */
+    public final ObjectProperty<Type> typeProperty() {
+        return type;
+    }
+
+    public final void setType(Type type) {
+        this.type.set(type);
+    }
+
+    /**
+     * Returns a string representation of this notification.
+     *
+     * @return a string representation of this notification
+     */
     @Override
     public String toString() {
         return new StringJoiner(", ", Notification.class.getSimpleName() + "[", "]")
@@ -237,6 +284,12 @@ public class Notification<T> implements Comparable<Notification<T>> {
                 .toString();
     }
 
+    /**
+     * Compares this notification with another notification based on their timestamps.
+     *
+     * @param o the other notification
+     * @return a negative integer, zero, or a positive integer as this notification is earlier than, simultaneous with, or later than the other notification
+     */
     @Override
     public int compareTo(Notification<T> o) {
         return getDateTime().compareTo(o.getDateTime());

@@ -9,7 +9,7 @@
     <parent>
         <groupId>ch.eswitch.gemsfx</groupId>
         <artifactId>parent</artifactId>
-        <version>2.61.0-SNAPSHOT</version>
+        <version>4.5.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -29,12 +29,104 @@
         <url>https://github.com/dlsc-software-consulting-gmbh/GemsFX</url>
     </scm>
 
+    <repositories>
+        <repository>
+            <id>jpro-repo</id>
+            <url>https://sandec.jfrog.io/artifactory/repo</url>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>jpro-repo</id>
+            <url>https://sandec.jfrog.io/artifactory/repo</url>
+        </pluginRepository>
+    </pluginRepositories>
+
     <properties>
-        <main.class>com.dlsc.gemsfx.demo.TimePickerApp</main.class>
+        <main.class>com.dlsc.gemsfx.demo.GemsFXDemoLauncher</main.class>
+        <snapshot.filter></snapshot.filter>
+        <!-- Demo module is not published; skip Central releasability enforcement -->
+        <enforcer.skip>true</enforcer.skip>
+        <devtoolsfx.version>1.0.1</devtoolsfx.version>
+        <jpro.maven.plugin.version>2026.1.1</jpro.maven.plugin.version>
+        <jpro.webapi.version>2025.3.1</jpro.webapi.version>
     </properties>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+            </resource>
+            <resource>
+                <directory>src/main/resources-filtered</directory>
+                <filtering>true</filtering>
+            </resource>
+            <resource>
+                <directory>src/main/java</directory>
+                <includes>
+                    <include>**/*.java</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <!-- The demo applications are not part of the published API, hence the
+                         "missing" doclint group is not enforced here. -->
+                    <doclint>accessibility,html,reference,syntax</doclint>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>
+                                ${project.build.directory}/libs
+                            </outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>libs/</classpathPrefix>
+                            <mainClass>
+                                com.dlsc.gemsfx.demo.GemsFXDemoLauncher
+                            </mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.dlsc.gemsfx.demo.GemsFXDemoLauncher</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
@@ -49,7 +141,8 @@
                         <id>default-cli</id>
                         <configuration>
                             <options>
-                                <option>--add-exports javafx.base/com.sun.javafx.event=org.controlsfx.controls</option>
+                                <option>-Dsnapshot.filter=${snapshot.filter}</option>
+                                <option>-Djavafx.enablePreview=true</option>
                             </options>
                         </configuration>
                     </execution>
@@ -61,7 +154,6 @@
                             <options>
                                 <option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:8000
                                 </option>
-                                <option>--add-exports javafx.base/com.sun.javafx.event=org.controlsfx.controls</option>
                             </options>
                         </configuration>
                     </execution>
@@ -71,7 +163,6 @@
                         <configuration>
                             <options>
                                 <option>-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</option>
-                                <option>--add-exports javafx.base/com.sun.javafx.event=org.controlsfx.controls</option>
                             </options>
                         </configuration>
                     </execution>
@@ -104,28 +195,64 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <plugin>
+                <groupId>one.jpro</groupId>
+                <artifactId>jpro-maven-plugin</artifactId>
+                <version>${jpro.maven.plugin.version}</version>
+                <configuration>
+                    <mainClassName>${main.class}</mainClassName>
+                    <localJVMArgs>
+                        <JVMArg>
+                            -Djavafx.enablePreview=true
+                        </JVMArg>
+                    </localJVMArgs>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
-
-    <repositories>
-        <repository>
-            <id>sandec</id>
-            <url>https://sandec.jfrog.io/artifactory/repo</url>
-        </repository>
-    </repositories>
 
     <dependencies>
 
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.12.7.1</version>  <!-- or whatever the latest version is -->
+            <groupId>io.github.mkpaz</groupId>
+            <artifactId>atlantafx-base</artifactId>
+            <version>3.0.0</version>
         </dependency>
 
         <dependency>
-            <groupId>com.sandec</groupId>
-            <artifactId>mdfx</artifactId>
-            <version>0.2.12</version>
+            <groupId>com.dlsc.atlantafx</groupId>
+            <artifactId>themes</artifactId>
+            <version>1.5.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.mkpaz</groupId>
+            <artifactId>devtoolsfx-connector</artifactId>
+            <version>${devtoolsfx.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.github.mkpaz</groupId>
+            <artifactId>devtoolsfx-gui</artifactId>
+            <version>${devtoolsfx.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>one.jpro.platform</groupId>
+            <artifactId>jpro-mdfx</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>one.jpro</groupId>
+            <artifactId>jpro-webapi</artifactId>
+            <version>${jpro.webapi.version}</version>
         </dependency>
 
         <dependency>
@@ -141,15 +268,9 @@
         </dependency>
 
         <dependency>
-            <groupId>fr.brouillard.oss</groupId>
-            <artifactId>cssfx</artifactId>
-            <version>11.5.1</version>
-        </dependency>
-
-        <dependency>
             <groupId>ch.eswitch.gemsfx</groupId>
             <artifactId>gemsfx</artifactId>
-            <version>2.61.0-SNAPSHOT</version>
+            <version>4.5.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>commons-logging</groupId>
@@ -161,13 +282,37 @@
         <dependency>
             <groupId>com.dlsc.pdfviewfx</groupId>
             <artifactId>pdfviewfx</artifactId>
-            <version>3.0.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-materialdesign-pack</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.kordamp.ikonli</groupId>
+            <artifactId>ikonli-material-pack</artifactId>
         </dependency>
 
         <!-- required if any dependency intends to log -->
         <dependency>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
         </dependency>
 
         <dependency>

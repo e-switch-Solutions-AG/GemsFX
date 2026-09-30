@@ -18,6 +18,7 @@ package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.CalendarViewSkin;
 import com.dlsc.gemsfx.skins.DateCellSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ListProperty;
@@ -38,6 +39,7 @@ import javafx.css.StyleableProperty;
 import javafx.css.converter.BooleanConverter;
 import javafx.css.converter.EnumConverter;
 import javafx.css.converter.SizeConverter;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Cell;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
@@ -57,6 +59,7 @@ import java.util.Objects;
 import static java.lang.Double.MAX_VALUE;
 import static java.util.Objects.requireNonNull;
 import static javafx.geometry.Pos.CENTER;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * Displays a given month of a given year. The view can be configured in many
@@ -77,8 +80,33 @@ import static javafx.geometry.Pos.CENTER;
  * <li>Show details of the date (by default shows a popover with all entries on
  * that date)</li>
  * </ol>
- * The image below shows the visual appearance of this control:
- * <img src="doc-files/date-picker.png" alt="Date Picker">
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-disable-month-dropdown-button}</td><td>{@code boolean}</td><td>Whether to disable the month dropdown button</td></tr>
+ *     <tr><td>{@code -fx-disable-next-month-button}</td><td>{@code boolean}</td><td>Whether to disable the next month button</td></tr>
+ *     <tr><td>{@code -fx-disable-next-year-button}</td><td>{@code boolean}</td><td>Whether to disable the next year button</td></tr>
+ *     <tr><td>{@code -fx-disable-previous-month-button}</td><td>{@code boolean}</td><td>Whether to disable the previous month button</td></tr>
+ *     <tr><td>{@code -fx-disable-previous-year-button}</td><td>{@code boolean}</td><td>Whether to disable the previous year button</td></tr>
+ *     <tr><td>{@code -fx-disable-year-dropdown-button}</td><td>{@code boolean}</td><td>Whether to disable the year dropdown button</td></tr>
+ *     <tr><td>{@code -fx-mark-selected-days-of-previous-or-next-month}</td><td>{@code boolean}</td><td>Whether to mark selected days of adjacent months</td></tr>
+ *     <tr><td>{@code -fx-month-display-mode}</td><td>{@code MonthDisplayMode}</td><td>Display mode for the month label</td></tr>
+ *     <tr><td>{@code -fx-month-selection-view-enabled}</td><td>{@code boolean}</td><td>Whether month selection view is enabled</td></tr>
+ *     <tr><td>{@code -fx-show-days-of-previous-or-next-month}</td><td>{@code boolean}</td><td>Whether to show days of adjacent months</td></tr>
+ *     <tr><td>{@code -fx-show-month}</td><td>{@code boolean}</td><td>Whether to show the month in the header</td></tr>
+ *     <tr><td>{@code -fx-show-month-arrows}</td><td>{@code boolean}</td><td>Whether to show the month arrows</td></tr>
+ *     <tr><td>{@code -fx-show-today}</td><td>{@code boolean}</td><td>Whether to show today's date highlighted</td></tr>
+ *     <tr><td>{@code -fx-show-today-button}</td><td>{@code boolean}</td><td>Whether to show the today button</td></tr>
+ *     <tr><td>{@code -fx-show-week-numbers}</td><td>{@code boolean}</td><td>Whether to show week numbers</td></tr>
+ *     <tr><td>{@code -fx-show-year}</td><td>{@code boolean}</td><td>Whether to show the year in the header</td></tr>
+ *     <tr><td>{@code -fx-week-number-column-width}</td><td>{@code double}</td><td>Width of the week number column in pixels</td></tr>
+ *     <tr><td>{@code -fx-year-display-mode}</td><td>{@code YearDisplayMode}</td><td>Display mode for the year label</td></tr>
+ *     <tr><td>{@code -fx-year-selection-view-enabled}</td><td>{@code boolean}</td><td>Whether year selection view is enabled</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class CalendarView extends Control {
 
@@ -110,6 +138,7 @@ public class CalendarView extends Control {
      */
     public CalendarView() {
         getStyleClass().add("calendar-view");
+        AccessibilityUtil.setRole(this, AccessibleRole.DATE_PICKER, ResourceBundleManager.getString(ResourceBundleManager.BundleType.CALENDAR_VIEW, "accessible.role-description", "calendar"));
 
         addEventFilter(MouseEvent.MOUSE_PRESSED, evt -> requestFocus());
         addEventFilter(TouchEvent.TOUCH_PRESSED, evt -> requestFocus());
@@ -351,7 +380,6 @@ public class CalendarView extends Control {
      * A flag used to indicate that the view will mark the area that represents
      * the value of {@link #todayProperty()}. By default, this area will be
      * filled with a different color (red) than the rest (white).
-     * <img src="doc-files/all-day-view-today.png" alt="All Day View Today">
      *
      * @return true if today will be shown differently
      */
@@ -663,6 +691,9 @@ public class CalendarView extends Control {
      */
     public static class DateCell extends Cell<LocalDate> {
 
+        /**
+         * Creates a new date cell.
+         */
         public DateCell() {
             getStyleClass().add("date-cell");
             setMaxSize(MAX_VALUE, MAX_VALUE);
@@ -674,6 +705,11 @@ public class CalendarView extends Control {
             return new DateCellSkin(this);
         }
 
+        /**
+         * Returns the date currently shown by this cell.
+         *
+         * @return the current date, or {@code null} if the cell is empty
+         */
         public final LocalDate getDate() {
             return getItem();
         }
@@ -694,8 +730,6 @@ public class CalendarView extends Control {
      * A factory for creating alternative content for the month view. The image
      * below shows the {@link CalendarView} once with the default factory and
      * once with an alternative factory that creates checkboxes.
-     * </p>
-     * <img src="doc-files/month-cell-factory.png" alt="Month Cell Factory">
      *
      * @return the cell factory
      */
@@ -985,6 +1019,11 @@ public class CalendarView extends Control {
         return selectionModel.get();
     }
 
+    /**
+     * The selection model used to track selected dates.
+     *
+     * @return the selection model property
+     */
     public final ObjectProperty<SelectionModel> selectionModelProperty() {
         return selectionModel;
     }
@@ -999,6 +1038,11 @@ public class CalendarView extends Control {
         return weekNumberColumnWidth == null ? DEFAULT_WEEK_NUMBER_COLUMN_WIDTH : weekNumberColumnWidth.get();
     }
 
+    /**
+     * The width of the week number column.
+     *
+     * @return the week number column width property
+     */
     public final DoubleProperty weekNumberColumnWidthProperty() {
         if (weekNumberColumnWidth == null) {
             weekNumberColumnWidth = new StyleableDoubleProperty(DEFAULT_WEEK_NUMBER_COLUMN_WIDTH) {
@@ -1072,7 +1116,7 @@ public class CalendarView extends Control {
         this.headerLayout.set(headerLayout);
     }
 
-    private final StringProperty todayText = new SimpleStringProperty(this, "todayText", "Today");
+    private final StringProperty todayText = new SimpleStringProperty(this, "todayText", ResourceBundleManager.getString(ResourceBundleManager.BundleType.CALENDAR_VIEW, "button.today", "Today"));
 
     public final String getTodayText() {
         return todayText.get();
@@ -1241,18 +1285,39 @@ public class CalendarView extends Control {
         monthDisplayModeProperty().set(monthDisplayMode);
     }
 
+    /**
+     * Tracks selected dates for a {@link CalendarView}.
+     */
     public static class SelectionModel {
 
+        /**
+         * Defines how many dates can be selected.
+         */
         public enum SelectionMode {
+            /**
+             * Allows at most one selected date.
+             */
             SINGLE_DATE,
+            /**
+             * Allows multiple individual selected dates.
+             */
             MULTIPLE_DATES,
+            /**
+             * Uses a start date and an end date for range selection.
+             */
             DATE_RANGE
         }
 
+        /**
+         * Creates a new selection model.
+         */
         public SelectionModel() {
             selectionMode.addListener(it -> clearSelection());
         }
 
+        /**
+         * Clears all selected dates.
+         */
         public final void clearSelection() {
             setSelectedDate(null);
             setSelectedEndDate(null);
@@ -1265,6 +1330,11 @@ public class CalendarView extends Control {
             return selectionMode.get();
         }
 
+        /**
+         * The current selection mode.
+         *
+         * @return the selection mode property
+         */
         public final ObjectProperty<SelectionMode> selectionModeProperty() {
             return selectionMode;
         }
@@ -1273,12 +1343,22 @@ public class CalendarView extends Control {
             this.selectionMode.set(selectionMode);
         }
 
+        /**
+         * Clears the current selection and selects the given date.
+         *
+         * @param date the date to select
+         */
         public void clearAndSelect(LocalDate date) {
             clearSelection();
             select(date);
         }
 
 
+        /**
+         * Selects the given date according to the current selection mode.
+         *
+         * @param date the date to select
+         */
         public void select(LocalDate date) {
             if (date == null) {
                 return;
@@ -1301,6 +1381,11 @@ public class CalendarView extends Control {
             }
         }
 
+        /**
+         * Clears or removes the given date according to the current selection mode.
+         *
+         * @param date the date to clear
+         */
         public void clearSelection(LocalDate date) {
             switch (getSelectionMode()) {
                 case SINGLE_DATE:
@@ -1319,6 +1404,12 @@ public class CalendarView extends Control {
             }
         }
 
+        /**
+         * Checks whether the given date is selected.
+         *
+         * @param date the date to test
+         * @return true if the date is selected
+         */
         public boolean isSelected(LocalDate date) {
             if (date == null) {
                 return false;
@@ -1352,6 +1443,11 @@ public class CalendarView extends Control {
             return selectedDate.get();
         }
 
+        /**
+         * The primary selected date.
+         *
+         * @return the selected date property
+         */
         public final ObjectProperty<LocalDate> selectedDateProperty() {
             return selectedDate;
         }
@@ -1366,6 +1462,11 @@ public class CalendarView extends Control {
             return selectedEndDate.get();
         }
 
+        /**
+         * The selected end date used by range selection.
+         *
+         * @return the selected end date property
+         */
         public final ObjectProperty<LocalDate> selectedEndDateProperty() {
             return selectedEndDate;
         }
@@ -1380,6 +1481,11 @@ public class CalendarView extends Control {
             return selectedDates.get();
         }
 
+        /**
+         * The selected dates used by multiple-date selection.
+         *
+         * @return the selected dates property
+         */
         public final ListProperty<LocalDate> selectedDatesProperty() {
             return selectedDates;
         }
@@ -1674,6 +1780,11 @@ public class CalendarView extends Control {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata for this control class.
+     *
+     * @return the CSS metadata
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return CalendarView.StyleableProperties.STYLEABLES;
     }

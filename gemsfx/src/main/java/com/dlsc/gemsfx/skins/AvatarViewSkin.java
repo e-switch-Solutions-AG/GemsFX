@@ -8,18 +8,22 @@ import javafx.beans.binding.DoubleBinding;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.SkinBase;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.Border;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
-public class AvatarViewSkin extends SkinBase<AvatarView> {
+/**
+ * Skin for the {@link AvatarView} control.
+ * <p>
+ * The skin switches between an image, initials text, or a fallback icon and
+ * clips the content according to the avatar shape.
+ */
+public class AvatarViewSkin extends GemsSkinBase<AvatarView> {
 
     private final StackPane imageWrapper;
     private final StackPane textWrapper;
@@ -31,6 +35,23 @@ public class AvatarViewSkin extends SkinBase<AvatarView> {
         }
     };
 
+    private final InvalidationListener updateViewListener = it -> updateView();
+
+    private final ChangeListener<Image> imageChangeListener = (ob, oldImage, newImage) -> {
+        if (oldImage != null) {
+            oldImage.progressProperty().removeListener(progressChangeListener);
+        }
+        if (newImage != null) {
+            newImage.progressProperty().addListener(progressChangeListener);
+        }
+        updateView();
+    };
+
+    /**
+     * Creates a skin for the given avatar view.
+     *
+     * @param avatar the avatar view rendered by this skin
+     */
     public AvatarViewSkin(AvatarView avatar) {
         super(avatar);
 
@@ -72,28 +93,15 @@ public class AvatarViewSkin extends SkinBase<AvatarView> {
         textWrapper = createWrapperStackPane(initialsText);
         textWrapper.getStyleClass().add("text-wrapper");
 
-        ChangeListener<Image> imageChangeListener = (ob, oldImage, newImage) -> {
-            if (oldImage != null) {
-                oldImage.progressProperty().removeListener(progressChangeListener);
-            }
-
-            if (newImage != null) {
-                newImage.progressProperty().addListener(progressChangeListener);
-            }
-
-            updateView();
-        };
-
-        avatar.imageProperty().addListener(imageChangeListener);
+        register(avatar.imageProperty(), imageChangeListener);
 
         Image image = avatar.getImage();
         if (image != null && image.isBackgroundLoading()) {
             image.progressProperty().addListener(progressChangeListener);
         }
 
-        InvalidationListener updateViewListener = it -> updateView();
-        avatar.imageProperty().addListener(updateViewListener);
-        avatar.initialsProperty().addListener(updateViewListener);
+        register(avatar.imageProperty(), updateViewListener);
+        register(avatar.initialsProperty(), updateViewListener);
 
         createClipBinding(iconWrapper);
         createClipBinding(textWrapper);
@@ -135,6 +143,16 @@ public class AvatarViewSkin extends SkinBase<AvatarView> {
                 return rectangle;
             }
         }, avatarView.avatarShapeProperty()));
+    }
+
+    @Override
+    public void dispose() {
+        AvatarView avatar = getSkinnable();
+        Image currentImage = avatar.getImage();
+        if (currentImage != null) {
+            currentImage.progressProperty().removeListener(progressChangeListener);
+        }
+        super.dispose();
     }
 
     private void updateView() {

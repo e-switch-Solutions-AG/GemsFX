@@ -1,26 +1,29 @@
 open module com.dlsc.gemsfx.demo {
+    requires javafx.swing;
     requires java.prefs;
 
     requires com.dlsc.pdfviewfx;
 
+    requires ch.eswitch.gemsfx;
+
+    requires atlantafx.base;
+    requires com.dlsc.atlantafx.themes;
+    requires devtoolsfx.connector;
+    requires devtoolsfx.gui;
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
 
-    requires ch.eswitch.gemsfx;
-
-    requires javafx.web;
-    requires javafx.controls;
-
-    requires com.sandec.mdfx;
+    requires one.jpro.platform.mdfx;
+    requires jpro.webapi;
 
     requires org.scenicview.scenicview;
     requires org.controlsfx.controls;
     requires org.kordamp.ikonli.javafx;
     requires org.kordamp.ikonli.materialdesign;
 
-    requires fr.brouillard.oss.cssfx;
     requires net.synedra.validatorfx;
     requires org.apache.commons.lang3;
+    requires org.kordamp.ikonli.material;
 
     exports com.dlsc.gemsfx.demo;
     exports com.dlsc.gemsfx.demo.binding;

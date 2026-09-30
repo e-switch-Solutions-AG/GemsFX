@@ -3,8 +3,7 @@ package com.dlsc.gemsfx.demo;
 import com.dlsc.gemsfx.CustomComboBox;
 import com.dlsc.gemsfx.DurationPicker;
 import com.dlsc.gemsfx.DurationPicker.LabelType;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -28,14 +27,14 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 
-public class DurationPickerApp extends Application {
+public class DurationPickerApp extends GemApplication {
 
     @Override
     public void start(Stage primaryStage) {
-        DurationPicker durationPicker = new DurationPicker();
+        super.start(primaryStage);
 
+        DurationPicker durationPicker = new DurationPicker();
         durationPicker.setLabelType(LabelType.SHORT);
-        durationPicker.setMaxWidth(Double.MAX_VALUE);
 
         ZonedDateTime timeA = ZonedDateTime.now();
         ZonedDateTime timeB = ZonedDateTime.now().plusDays(2).plusHours(10).plusMinutes(23).plusSeconds(55);
@@ -195,6 +194,7 @@ public class DurationPickerApp extends Application {
 
         ComboBox<CustomComboBox.ButtonDisplay> buttonDisplayBox = new ComboBox<>();
         buttonDisplayBox.getItems().addAll(CustomComboBox.ButtonDisplay.values());
+        buttonDisplayBox.setConverter(new EnumStringConverter<>());
         buttonDisplayBox.valueProperty().bindBidirectional(durationPicker.buttonDisplayProperty());
 
         GridPane gridPane = new GridPane();
@@ -217,7 +217,12 @@ public class DurationPickerApp extends Application {
         VBox box2 = new VBox(20, fullWidth, showPopupButtonBox, fillDigitsCheckBox, linkFieldsBox, rollOverBox, gridPane);
         HBox box3 = new HBox(20, showPopupButton, hidePopupButton, zeroButton, nullButton);
 
-        box1.setStyle("-fx-padding: 20px; -fx-background-color: white; -fx-background-radius: 2px; -fx-border-color: gray; -fx-border-radius: 2px;");
+        if (Boolean.getBoolean("atlantafx")) {
+            box1.setStyle("-fx-background-color: -color-neutral-muted; -fx-border-color: -color-border-default; -fx-padding: 20px; -fx-background-radius: 2px; -fx-border-radius: 2px;");
+        } else {
+            box1.setStyle("-fx-padding: 20px; -fx-background-color: white; -fx-background-radius: 2px; -fx-border-color: gray; -fx-border-radius: 2px;");
+        }
+
         box2.setStyle(box1.getStyle()); // same style
         box3.setStyle(box2.getStyle()); // same style
 
@@ -239,12 +244,11 @@ public class DurationPickerApp extends Application {
         stackPane.setPadding(new Insets(20));
 
         Scene scene = new Scene(stackPane);
-        CSSFX.start(scene);
 
         primaryStage.setTitle("DurationPicker");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
-        primaryStage.centerOnScreen();
+
         primaryStage.show();
     }
 

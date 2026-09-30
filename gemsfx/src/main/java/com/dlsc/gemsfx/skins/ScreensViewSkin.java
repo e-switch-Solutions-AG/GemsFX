@@ -3,6 +3,7 @@ package com.dlsc.gemsfx.skins;
 import com.dlsc.gemsfx.ScreensView;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
+import javafx.beans.WeakInvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.DoubleBinding;
@@ -10,7 +11,6 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Group;
 import javafx.scene.control.Label;
-import javafx.scene.control.SkinBase;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.effect.Reflection;
 import javafx.scene.image.Image;
@@ -33,11 +33,28 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Callback;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
+import java.text.MessageFormat;
 
-public class ScreensViewSkin extends SkinBase<ScreensView> {
+/**
+ * Skin for {@link ScreensView}.
+ * <p>
+ * The skin builds a scaled group of screen representations, optional wallpaper
+ * backgrounds, visible-area overlays, custom shapes, and live window nodes.
+ */
+public class ScreensViewSkin extends GemsSkinBase<ScreensView> {
 
-    private Group scalingGroup = new Group();
+    private final Group scalingGroup = new Group();
 
+    // Strong reference required so the weak wrapper below is not prematurely GC'd
+    private final InvalidationListener updateViewListener = (Observable it) -> updateView();
+    private final WeakInvalidationListener weakUpdateViewListener = new WeakInvalidationListener(updateViewListener);
+
+    /**
+     * Creates a new skin for the given screens view.
+     *
+     * @param view the screens view to skin
+     */
     public ScreensViewSkin(ScreensView view) {
         super(view);
 
@@ -61,14 +78,12 @@ public class ScreensViewSkin extends SkinBase<ScreensView> {
         }, view.showReflectionProperty(), view.showShadowProperty()));
         getChildren().add(group);
 
-        InvalidationListener updateViewListener = (Observable it) -> updateView();
+        register(view.showWallpaperProperty(), updateViewListener);
+        register(view.showWindowsProperty(), updateViewListener);
+        register(view.getShapes(), updateViewListener);
 
-        view.showWallpaperProperty().addListener(updateViewListener);
-        view.showWindowsProperty().addListener(updateViewListener);
-        view.getShapes().addListener(updateViewListener);
-
-        Screen.getScreens().addListener(updateViewListener);
-        Window.getWindows().addListener(updateViewListener);
+        register(Screen.getScreens(), weakUpdateViewListener);
+        register(Window.getWindows(), weakUpdateViewListener);
 
         updateView();
     }
@@ -131,8 +146,16 @@ public class ScreensViewSkin extends SkinBase<ScreensView> {
         scalingGroup.scaleYProperty().bind(scale);
     }
 
+    /**
+     * Background layer for one {@link Screen}.
+     */
     public class BackgroundView extends StackPane {
 
+        /**
+         * Creates a background layer for the given screen.
+         *
+         * @param screen the screen represented by this layer
+         */
         public BackgroundView(Screen screen) {
             getStyleClass().add("background");
 
@@ -157,8 +180,16 @@ public class ScreensViewSkin extends SkinBase<ScreensView> {
         }
     }
 
+    /**
+     * Screen layer displaying the screen bounds and label.
+     */
     public class ScreenView extends StackPane {
 
+        /**
+         * Creates a screen layer for the given screen.
+         *
+         * @param screen the screen represented by this layer
+         */
         public ScreenView(Screen screen) {
             getStyleClass().add("screen");
 
@@ -173,18 +204,26 @@ public class ScreensViewSkin extends SkinBase<ScreensView> {
             setPrefWidth(bounds.getWidth());
             setPrefHeight(bounds.getHeight());
 
-            Label label = new Label("Screen " + Screen.getScreens().indexOf(screen));
+            Label label = new Label(MessageFormat.format(ResourceBundleManager.getString(ResourceBundleManager.BundleType.SCREENS_VIEW, "label.screen-index", "Screen {0}"), Screen.getScreens().indexOf(screen)));
             label.setTextAlignment(TextAlignment.CENTER);
             label.setWrapText(true);
             if (Screen.getPrimary().equals(screen)) {
-                label.setText("Primary");
+                label.setText(ResourceBundleManager.getString(ResourceBundleManager.BundleType.SCREENS_VIEW, "label.primary", "Primary"));
             }
             getChildren().add(label);
         }
     }
 
+    /**
+     * Overlay showing the portion of a screen outside its visual bounds.
+     */
     static class VisibleAreaView extends StackPane {
 
+        /**
+         * Creates a visible-area overlay for the given screen.
+         *
+         * @param screen the screen represented by this overlay
+         */
         public VisibleAreaView(Screen screen) {
             getStyleClass().add("visible-area");
 
@@ -206,8 +245,16 @@ public class ScreensViewSkin extends SkinBase<ScreensView> {
         }
     }
 
+    /**
+     * Glass overlay for one screen.
+     */
     static class GlassView extends StackPane {
 
+        /**
+         * Creates a glass overlay for the given screen.
+         *
+         * @param screen the screen represented by this overlay
+         */
         public GlassView(Screen screen) {
             getStyleClass().add("glass");
 

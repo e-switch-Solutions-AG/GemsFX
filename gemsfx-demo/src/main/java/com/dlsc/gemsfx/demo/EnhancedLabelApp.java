@@ -1,17 +1,16 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.EnhancedLabel;
-import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class EnhancedLabelApp extends Application {
+public class EnhancedLabelApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         EnhancedLabel label1 = new EnhancedLabel("This is an enhanced label, try to copy me! (Double click to select first, then shortcut. Or use the context menu.)");
         EnhancedLabel label2 = new EnhancedLabel("Enhanced label with a custom copy content supplier. Copies only this ID: 12345678");
         label2.setCopyContentSupplier(() -> "12345678");
@@ -28,7 +27,7 @@ public class EnhancedLabelApp extends Application {
         stage.setScene(scene);
         stage.setWidth(1000);
         stage.setHeight(850);
-        stage.centerOnScreen();
+
         stage.show();
     }
 

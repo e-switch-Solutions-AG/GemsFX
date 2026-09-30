@@ -2,7 +2,7 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.AvatarView;
 import com.dlsc.gemsfx.AvatarView.AvatarShape;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -22,11 +22,10 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import org.scenicview.ScenicView;
 
 import java.util.Objects;
 
-public class AvatarViewApp extends Application {
+public class AvatarViewApp extends GemApplication {
 
     private AvatarView avatarView;
 
@@ -37,7 +36,8 @@ public class AvatarViewApp extends Application {
     private static final String INITIALS = "LD";
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
 
         Tab tabA = createTabA();
         Tab tabB = createTabB();
@@ -48,6 +48,7 @@ public class AvatarViewApp extends Application {
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
         primaryStage.setTitle("AvatarView");
+
         primaryStage.show();
     }
 
@@ -55,12 +56,18 @@ public class AvatarViewApp extends Application {
         avatarView = new AvatarView();
 
         StackPane avatarViewWrapper = new StackPane(avatarView);
-        avatarViewWrapper.setStyle(" -fx-background-color: white; -fx-pref-width: 200px");
-
         HBox wrapper = new HBox(50, avatarViewWrapper, getControlPanel());
         wrapper.setAlignment(Pos.CENTER);
-        wrapper.setStyle(" -fx-background-color: white;");
         HBox.setHgrow(avatarViewWrapper, Priority.ALWAYS);
+
+        if (Boolean.getBoolean("atlantafx")) {
+            avatarViewWrapper.setStyle(" -fx-background-color: -color-bg-inset; -fx-pref-width: 200px");
+            wrapper.setStyle(" -fx-background-color: -color-bg-inset;");
+        } else {
+            avatarViewWrapper.setStyle(" -fx-background-color: white; -fx-pref-width: 200px");
+            wrapper.setStyle(" -fx-background-color: white;");
+        }
+
 
         return new Tab("Image / Text / Blank", wrapper);
     }
@@ -79,7 +86,11 @@ public class AvatarViewApp extends Application {
         VBox vBox = new VBox(50, hBox1, hBox2, hBox3, hBox4, hBox1b, hBox2b, hBox3b, hBox4b);
         vBox.setAlignment(Pos.CENTER);
         vBox.setPadding(new Insets(50));
-        vBox.setStyle("-fx-background-color: white;");
+        if (Boolean.getBoolean("atlantafx")) {
+            vBox.setStyle("-fx-background-color: -color-bg-inset;");
+        } else {
+            vBox.setStyle("-fx-background-color: white;");
+        }
 
         ScrollPane scrollPane = new ScrollPane(vBox);
         scrollPane.setFitToWidth(true);
@@ -113,6 +124,7 @@ public class AvatarViewApp extends Application {
         Label shapeLabel = new Label("Shape:");
         ComboBox<AvatarShape> shapeComboBox = new ComboBox<>();
         shapeComboBox.getItems().addAll(AvatarShape.values());
+        shapeComboBox.setConverter(new EnumStringConverter<>());
         shapeComboBox.setValue(AvatarShape.SQUARE);
         shapeComboBox.setMaxWidth(Double.MAX_VALUE);
         avatarView.avatarShapeProperty().bind(shapeComboBox.valueProperty());
@@ -158,7 +170,11 @@ public class AvatarViewApp extends Application {
         avatarView.sizeProperty().bind(sizeSpinner.valueProperty());
 
         VBox vBox = new VBox(20, shapeLabel, shapeComboBox, contentType, contentComboBox, initialsLabel, initialsTextField, arcSizeLabel, arcSizeSpinner, sizeLabel, sizeSpinner);
-        vBox.setStyle("-fx-background-color: #e0e0e0; -fx-padding: 20px;");
+        if (Boolean.getBoolean("atlantafx")) {
+            vBox.setStyle("-fx-background-color: -color-bg-default; -fx-padding: 20px;");
+        } else {
+            vBox.setStyle("-fx-background-color: #e0e0e0; -fx-padding: 20px;");
+        }
         HBox.setHgrow(vBox, Priority.NEVER);
         vBox.setAlignment(Pos.CENTER_LEFT);
         return vBox;

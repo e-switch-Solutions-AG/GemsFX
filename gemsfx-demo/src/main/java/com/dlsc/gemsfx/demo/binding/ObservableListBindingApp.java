@@ -1,7 +1,7 @@
 package com.dlsc.gemsfx.demo.binding;
 
 import com.dlsc.gemsfx.binding.ObservableValuesListBinding;
-import javafx.application.Application;
+import com.dlsc.gemsfx.demo.GemApplication;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -21,13 +21,15 @@ import java.util.Random;
  * This demo shows how to use the {@link ObservableValuesListBinding} class to create a binding that
  * calculates the sum and average of a list of observable values.
  */
-public class ObservableListBindingApp extends Application {
+public class ObservableListBindingApp extends GemApplication {
 
     private final Random random = new Random();
     private Label sumLabel1;
 
     @Override
     public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         ObservableList<ObservableValue<Number>> observableValues = FXCollections.observableArrayList();
         observableValues.add(new SimpleIntegerProperty(10));
         observableValues.add(new SimpleIntegerProperty(20));
@@ -59,6 +61,7 @@ public class ObservableListBindingApp extends Application {
         primaryStage.setTitle("Observable Values List View Demo");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
+
         primaryStage.show();
     }
 
@@ -67,7 +70,11 @@ public class ObservableListBindingApp extends Application {
         HBox statsBox = new HBox(30, sumLabel, averageLabel);
 
         VBox vBox = new VBox(10, titleLabel, statsBox);
-        vBox.setStyle("-fx-border-radius: 5px;-fx-border-color: lightgrey;-fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        if (Boolean.getBoolean("atlantafx")) {
+            vBox.setStyle("-fx-border-radius: 5px;-fx-border-color: -color-border-default; -fx-background-color: -color-bg-inset; -fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        } else {
+            vBox.setStyle("-fx-border-radius: 5px;-fx-border-color: lightgrey;-fx-border-width: 1px;-fx-alignment: center-left;-fx-padding: 5px;");
+        }
 
         return vBox;
     }

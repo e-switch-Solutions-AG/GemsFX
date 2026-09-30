@@ -1,9 +1,10 @@
 package com.dlsc.gemsfx.util;
 
 import com.github.weisj.jsvg.SVGDocument;
-import com.github.weisj.jsvg.attributes.ViewBox;
-import com.github.weisj.jsvg.geometry.size.FloatSize;
+import com.github.weisj.jsvg.parser.LoaderContext;
 import com.github.weisj.jsvg.parser.SVGLoader;
+import com.github.weisj.jsvg.view.FloatSize;
+import com.github.weisj.jsvg.view.ViewBox;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 
@@ -117,7 +118,7 @@ public final class SVGUtil {
 
     private static SVGDocument loadSVGDocument(InputStream is) {
         SVGLoader loader = new SVGLoader();
-        return loader.load(is);
+        return loader.load(is, null, LoaderContext.createDefault());
     }
 
     /**
@@ -166,6 +167,16 @@ public final class SVGUtil {
         }
     }
 
+    /**
+     * Converts an SVG file to an image with the specified dimensions and scale factors.
+     *
+     * @param svgFile the SVG file
+     * @param requestedWidth the preferred image width
+     * @param requestedHeight the preferred image height
+     * @param outputScaleX the horizontal scale factor
+     * @param outputScaleY the vertical scale factor
+     * @return an image created from the SVG file
+     */
     public static Image toImage(File svgFile, double requestedWidth, double requestedHeight, double outputScaleX, double outputScaleY) {
         return toImage(loadSVGDocument(svgFile), requestedWidth, requestedHeight, outputScaleX, outputScaleY);
     }

@@ -1,7 +1,7 @@
 package com.dlsc.gemsfx.demo.util;
 
+import com.dlsc.gemsfx.demo.GemApplication;
 import com.dlsc.gemsfx.util.EnumStringConverter;
-import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -19,7 +19,7 @@ import javafx.stage.Stage;
  * <p>
  * {@link EnumStringConverter}
  */
-public class EnumStringConverterDemo extends Application {
+public class EnumStringConverterDemo extends GemApplication {
 
     public enum Status {
         NOT_STARTED,
@@ -30,6 +30,8 @@ public class EnumStringConverterDemo extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         // Create a ComboBox and populate it with Status objects
         ComboBox<Status> comboBox = new ComboBox<>();
         comboBox.getItems().addAll(Status.values());
@@ -68,6 +70,7 @@ public class EnumStringConverterDemo extends Application {
         // Configure and show the primary stage
         primaryStage.setTitle("EnumStringConverter Demo");
         primaryStage.setScene(scene);
+
         primaryStage.show();
     }
 

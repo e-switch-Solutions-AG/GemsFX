@@ -1,28 +1,33 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.daterange.DateRangeView;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import com.jpro.webapi.WebAPI;
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.HBox;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import org.scenicview.ScenicView;
 
-public class DateRangeViewApp extends Application {
+public class DateRangeViewApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         DateRangeView view = new DateRangeView();
         view.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
 
-        Button scenicViewButton = new Button("SCENIC VIEW");
+        Button scenicViewButton = new Button("Dev Tools");
+        scenicViewButton.setVisible(!WebAPI.isBrowser());
+        scenicViewButton.setManaged(!WebAPI.isBrowser());
         VBox.setMargin(scenicViewButton, new Insets(50, 0, 0, 0));
 
         ComboBox<Side> sideBox = new ComboBox<>();
@@ -42,24 +47,30 @@ public class DateRangeViewApp extends Application {
         TextField titleField = new TextField();
         titleField.textProperty().bindBidirectional(view.presetTitleProperty());
 
-        HBox optionsBox = new HBox(10, sideBox, orientationBox, scenicViewButton, titleField, showButtons, showPresets);
+        Button clearButton = new Button();
+        clearButton.textProperty().bind(Bindings.createStringBinding(() -> view.getValue() == null ? "Clear" : "Clear " + view.getValue().toString(), view.valueProperty()));
+        clearButton.setOnAction(evt -> view.setValue(null));
+        clearButton.disableProperty().bind(view.valueProperty().isNull());
+
+        Label valueLabel = new Label();
+        valueLabel.textProperty().bind(Bindings.createStringBinding(() -> view.getValue() == null ? "No value" : "Value: " + view.getValue().toString(), view.valueProperty()));
+
+        FlowPane optionsBox = new FlowPane(10, 10, sideBox, orientationBox, scenicViewButton, titleField, showButtons, showPresets, clearButton);
         optionsBox.setAlignment(Pos.CENTER);
 
-        VBox vBox = new VBox(20, view, optionsBox);
+        VBox vBox = new VBox(20, view, valueLabel, optionsBox);
 
         vBox.setPadding(new Insets(20));
         vBox.setAlignment(Pos.CENTER);
 
         Scene scene = new Scene(vBox);
-        scenicViewButton.setOnAction(evt -> ScenicView.show(scene));
+        configureDevToolsButton(scenicViewButton);
 
         stage.setTitle("Date Range View");
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.centerOnScreen();
-        stage.show();
 
-        CSSFX.start(scene);
+        stage.show();
     }
 
     public static void main(String[] args) {

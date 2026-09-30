@@ -1,18 +1,23 @@
 package com.dlsc.gemsfx.daterange;
 
 import com.dlsc.gemsfx.skins.DateRangePickerSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.Skin;
+import javafx.scene.layout.Region;
 
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.Objects;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A control to let the user select a date range (start date, end date) via two {@link com.dlsc.gemsfx.CalendarView}
@@ -29,19 +34,54 @@ public class DateRangePicker extends ComboBoxBase<DateRange> {
      */
     public DateRangePicker() {
         super();
+        getStyleClass().add("date-range-picker");
+        AccessibilityUtil.setRole(this, AccessibleRole.DATE_PICKER);
+        AccessibilityUtil.bindAccessibleText(this, Bindings.createStringBinding(() -> {
+            DateRange range = getValue();
+            if (range == null) {
+                return null;
+            }
+
+            DateTimeFormatter formatter = getFormatter();
+            String rangeText;
+            if (formatter == null) {
+                rangeText = range.toString();
+            } else if (range.getStartDate().equals(range.getEndDate())) {
+                rangeText = formatter.format(range.getStartDate());
+            } else {
+                rangeText = formatter.format(range.getStartDate()) + " - " + formatter.format(range.getEndDate());
+            }
+
+            String title = range.getTitle();
+            if (title == null || title.isBlank()) {
+                title = getCustomRangeText();
+            }
+            return title == null || title.isBlank() ? rangeText : title + ", " + rangeText;
+        }, valueProperty(), formatterProperty(), customRangeTextProperty()));
 
         dateRangeView = getDateRangeView();
 
         setValue(dateRangeView.getValue());
 
-        getStyleClass().add("date-range-picker");
+        setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new DateRangePickerSkin(this);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(DateRangePicker.class.getResource("date-range-picker.css")).toExternalForm();
@@ -148,7 +188,7 @@ public class DateRangePicker extends ComboBoxBase<DateRange> {
 
     // custom range text
 
-    private final StringProperty customRangeText = new SimpleStringProperty(this, "customRangeText", "Date Range");
+    private final StringProperty customRangeText = new SimpleStringProperty(this, "customRangeText", ResourceBundleManager.getString(ResourceBundleManager.BundleType.DATE_RANGE_PICKER, "label.custom-range", "Date Range"));
 
     public final String getCustomRangeText() {
         return customRangeText.get();

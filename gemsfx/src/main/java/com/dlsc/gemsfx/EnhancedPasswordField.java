@@ -1,6 +1,7 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.EnhancedPasswordFieldSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import com.dlsc.gemsfx.util.EchoCharConverter;
 import com.dlsc.gemsfx.util.UIUtil;
 import javafx.beans.property.BooleanProperty;
@@ -12,6 +13,7 @@ import javafx.css.PseudoClass;
 import javafx.css.Styleable;
 import javafx.css.StyleableObjectProperty;
 import javafx.css.StyleableProperty;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.Skin;
@@ -51,9 +53,21 @@ import java.util.logging.Logger;
  * </pre>
  *
  * @see PasswordField
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-echo-char}</td><td>{@code char}</td><td>Character used to mask the password</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class EnhancedPasswordField extends PasswordField {
 
+    /**
+     * The default character used to mask the password.
+     */
     public static final char DEFAULT_ECHO_CHAR = '●';
 
     private static final String DEFAULT_STYLE_CLASS = "enhanced-password-field";
@@ -62,11 +76,16 @@ public class EnhancedPasswordField extends PasswordField {
 
     private final Logger LOG = Logger.getLogger(EnhancedPasswordField.class.getName());
 
+    /**
+     * Constructs a new enhanced password field.
+     */
     public EnhancedPasswordField() {
         super();
         getStyleClass().add(DEFAULT_STYLE_CLASS);
+        AccessibilityUtil.setRole(this, AccessibleRole.PASSWORD_FIELD);
 
-        showPasswordProperty().subscribe(showing -> pseudoClassStateChanged(SHOWING_PASSWORD_PSEUDO_CLASS, showing));
+        showPasswordProperty().addListener((obs, wasShowing, showing) -> pseudoClassStateChanged(SHOWING_PASSWORD_PSEUDO_CLASS, showing));
+        pseudoClassStateChanged(SHOWING_PASSWORD_PSEUDO_CLASS, isShowPassword());
 
         //set right node
         Region rightIcon = new Region();
@@ -83,19 +102,39 @@ public class EnhancedPasswordField extends PasswordField {
         setRight(rightWrapper);
     }
 
+    /**
+     * Constructs a new enhanced password field with the given text.
+     *
+     * @param text the initial text
+     */
     public EnhancedPasswordField(String text) {
         this();
         setText(text);
     }
 
+    /**
+     * Creates the default skin for this control.
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new EnhancedPasswordFieldSkin(this) {
+            /**
+             * {@inheritDoc}
+             *
+             * @return the result
+             */
             @Override
             public ObjectProperty<Node> leftProperty() {
                 return EnhancedPasswordField.this.leftProperty();
             }
 
+            /**
+             * {@inheritDoc}
+             *
+             * @return the result
+             */
             @Override
             public ObjectProperty<Node> rightProperty() {
                 return EnhancedPasswordField.this.rightProperty();
@@ -103,13 +142,13 @@ public class EnhancedPasswordField extends PasswordField {
         };
     }
 
-    /**
-     * The node to be shown on the left side of the password field.
-     * <p>
-     * returns the node to be shown on the left side of the password field.
-     */
     private final ObjectProperty<Node> left = new SimpleObjectProperty<>(this, "left");
 
+    /**
+     * The node shown on the left side of the password field.
+     *
+     * @return the left property
+     */
     public final ObjectProperty<Node> leftProperty() {
         return left;
     }
@@ -122,13 +161,13 @@ public class EnhancedPasswordField extends PasswordField {
         leftProperty().set(left);
     }
 
-    /**
-     * The node to be shown on the right side of the password field.
-     * <p>
-     * returns the node to be shown on the right side of the password field.
-     */
     private final ObjectProperty<Node> right = new SimpleObjectProperty<>(this, "right");
 
+    /**
+     * The node shown on the right side of the password field.
+     *
+     * @return the right property
+     */
     public final ObjectProperty<Node> rightProperty() {
         return right;
     }
@@ -169,19 +208,44 @@ public class EnhancedPasswordField extends PasswordField {
 
     private ObjectProperty<Character> echoCharProperty;
 
+    /**
+     * The character used to mask the password when it is not shown in plain text.
+     * <p>
+     * Can be set via CSS using the {@code -fx-echo-char} property.
+     * Valid values are: a single character (e.g. {@code '●'}).
+     * The default value is {@code '●'}.
+     * </p>
+     *
+     * @return the echo character property
+     */
     public final ObjectProperty<Character> echoCharProperty() {
         if (echoCharProperty == null) {
             echoCharProperty = new StyleableObjectProperty<>(DEFAULT_ECHO_CHAR) {
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the owning bean
+                 */
                 @Override
                 public Object getBean() {
                     return EnhancedPasswordField.this;
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the property name
+                 */
                 @Override
                 public String getName() {
                     return "echoChar";
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the CSS metadata for this property
+                 */
                 @Override
                 public CssMetaData<? extends Styleable, Character> getCssMetaData() {
                     return StyleableProperties.ECHO_CHAR;
@@ -234,11 +298,23 @@ public class EnhancedPasswordField extends PasswordField {
     private static class StyleableProperties {
         private static final CssMetaData<EnhancedPasswordField, Character> ECHO_CHAR = new CssMetaData<>("-fx-echo-char",
                 EchoCharConverter.getInstance(), DEFAULT_ECHO_CHAR) {
+            /**
+             * {@inheritDoc}
+             *
+             * @param control the control to inspect
+             * @return true if the property can be styled
+             */
             @Override
             public boolean isSettable(EnhancedPasswordField control) {
                 return control.echoCharProperty == null || !control.echoCharProperty.isBound();
             }
 
+            /**
+             * {@inheritDoc}
+             *
+             * @param control the control to inspect
+             * @return the styleable property
+             */
             @Override
             public StyleableProperty<Character> getStyleableProperty(EnhancedPasswordField control) {
                 return (StyleableProperty<Character>) control.echoCharProperty();
@@ -254,18 +330,32 @@ public class EnhancedPasswordField extends PasswordField {
         }
     }
 
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the control CSS metadata
+     */
     @Override
     public List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the class CSS metadata
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return EnhancedPasswordField.StyleableProperties.STYLEABLES;
     }
 
+    /**
+     * Returns the stylesheet used by this control.
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(EnhancedPasswordField.class.getResource("enhanced-password-field.css")).toExternalForm();
     }
-
 }

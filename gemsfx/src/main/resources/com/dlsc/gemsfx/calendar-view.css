@@ -17,6 +17,11 @@
     -fx-horizontal-grid-gap: 1px;
 }
 
+.calendar-view.popover {
+    -fx-background-color: -fx-background;
+    -fx-background-insets: 0px;
+}
+
 .calendar-view > .container {
     -fx-alignment: center;
     -fx-fill-width: true;
@@ -36,8 +41,11 @@
     -fx-spacing: 5px;
 }
 
+.calendar-view.popover > .stack-pane > .container > .header {
+    -fx-padding: 10px 20px;
+}
+
 .calendar-view > .stack-pane > .container > .header > .date-label {
-    -fx-font-weight: bold;
     -fx-content-display: right;
     -fx-font-size: 1.1em;
 }
@@ -153,7 +161,16 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, .26), 10, 0.12, -1, 2);
     -fx-grid-lines-visible: false;
     -fx-hgap: -fx-horizontal-grid-gap;
-    -fx-padding: 0px 10px 10px 10px;
+    -fx-padding: 0px 10px;
+}
+
+.calendar-view.popover > .stack-pane > .container > .weekday-grid-pane {
+    -fx-background: -fx-control-inner-background;
+    -fx-background-color: -fx-background;
+    -fx-effect: null;
+    -fx-grid-lines-visible: false;
+    -fx-hgap: -fx-horizontal-grid-gap;
+    -fx-padding: 10px 10px 0px 10px;
 }
 
 .calendar-view > .stack-pane > .container > .weekday-grid-pane > .corner {
@@ -167,11 +184,14 @@
     -fx-pref-height: -size;
     -fx-min-width: -size;
     -fx-min-height: -size;
-    -fx-text-fill: grey;
     -fx-font-size: .8em;
     -fx-background: -fx-control-inner-background;
     -fx-background-color: -fx-background;
     -fx-alignment: center;
+}
+
+.calendar-view > .stack-pane > .container > .weekday-grid-pane > .weekday-name .text {
+    -fx-opacity: .8;
 }
 
 .calendar-view > .stack-pane > .container > .body-grid-pane {
@@ -181,6 +201,10 @@
     -fx-background-color: -fx-background;
     -fx-hgap: -fx-horizontal-grid-gap;
     -fx-vgap: -fx-vertical-grid-gap;
+}
+
+.calendar-view.popover > .stack-pane > .container > .body-grid-pane {
+    -fx-background: -fx-control-inner-background;
 }
 
 .calendar-view > .stack-pane > .container > .body-grid-pane > .week-number-label {
@@ -202,14 +226,34 @@
     -fx-max-height: 2.5em;
 }
 
+.calendar-view.popover > .stack-pane > .container > .body-grid-pane > .date-cell {
+    -fx-background: -fx-control-inner-background;
+}
+
 .calendar-view > .stack-pane > .container > .body-grid-pane > .date-cell.previous-month {
     -fx-background: rgb(230, 231, 233);
-    -fx-text-fill: grey;
+}
+
+.calendar-view > .stack-pane > .container > .body-grid-pane > .date-cell.previous-month .text {
+    -fx-opacity: .5;
+}
+
+.calendar-view.popover > .stack-pane > .container > .body-grid-pane > .date-cell.previous-month {
+    -fx-background: -fx-control-inner-background;
+    -fx-opacity: 0.8;
 }
 
 .calendar-view > .stack-pane > .container > .body-grid-pane > .date-cell.next-month {
     -fx-background: rgb(230, 231, 233);
-    -fx-text-fill: grey;
+}
+
+.calendar-view > .stack-pane > .container > .body-grid-pane > .date-cell.next-month .text {
+    -fx-opacity: .5;
+}
+
+.calendar-view.popover > .stack-pane > .container > .body-grid-pane > .date-cell.next-month {
+    -fx-background: -fx-control-inner-background;
+    -fx-opacity: 0.8;
 }
 
 .calendar-view > .stack-pane > .container > .body-grid-pane > .date-cell.weekend-day {

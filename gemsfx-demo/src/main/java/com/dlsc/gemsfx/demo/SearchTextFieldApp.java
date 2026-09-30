@@ -4,8 +4,8 @@ import com.dlsc.gemsfx.SearchTextField;
 import com.dlsc.gemsfx.Spacer;
 import com.dlsc.gemsfx.util.HistoryManager;
 import com.dlsc.gemsfx.util.StringHistoryManager;
-import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -22,16 +22,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.prefs.Preferences;
 
-public class SearchTextFieldApp extends Application {
+public class SearchTextFieldApp extends GemApplication {
 
     private StringHistoryManager stringHistoryManager;
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
+        super.start(primaryStage);
 
         SearchTextField field = new SearchTextField();
 
         CheckBox roundBox = new CheckBox("Round");
+        roundBox.setSelected(true);
         field.roundProperty().bind(roundBox.selectedProperty());
 
         CheckBox enableHistoryBox = new CheckBox("Enable History");
@@ -49,7 +51,7 @@ public class SearchTextFieldApp extends Application {
         });
         enableHistoryBox.setSelected(true);
 
-        Label label = new Label("Max History Size:");
+        Label label = new Label("Max History Size");
         Spinner<Integer> maxHistorySizeSpinner = new Spinner<>(5, 50, 30, 5);
         maxHistorySizeSpinner.valueProperty().addListener((obs, oldVal, newVal) -> {
             HistoryManager<String> historyManager = field.getHistoryManager();
@@ -92,19 +94,19 @@ public class SearchTextFieldApp extends Application {
         clearButton.setMaxWidth(Double.MAX_VALUE);
         clearButton.setOnAction(e -> Optional.ofNullable(field.getHistoryManager()).ifPresent(HistoryManager::clear));
 
-        VBox historyControls = new VBox(5, new Separator(), maxHistorySizeBox, addHistoryOnActionBox, addHistoryOnFocusLossBox,
+        VBox historyControls = new VBox(10, new Separator(), maxHistorySizeBox, addHistoryOnActionBox, addHistoryOnFocusLossBox,
                 setHistoryButton, addHistoryButton, clearButton);
         historyControls.managedProperty().bind(enableHistoryBox.selectedProperty());
         historyControls.visibleProperty().bind(enableHistoryBox.selectedProperty());
 
-        VBox vbox = new VBox(20, new Label("Standard"), field, roundBox, enableHistoryBox, historyControls);
+        VBox vbox = new VBox(10, field, new Separator(Orientation.HORIZONTAL), roundBox, enableHistoryBox, historyControls);
         vbox.setPadding(new Insets(20));
 
         Scene scene = new Scene(vbox);
         primaryStage.setTitle("Search Text Field");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
-        primaryStage.centerOnScreen();
+
         primaryStage.show();
     }
 

@@ -1,0 +1,21 @@
+.popover {
+    -fx-background-color: transparent;
+}
+
+.popover:detached {
+}
+
+.popover > .background {
+    -fx-stroke: transparent;
+    -fx-fill: -fx-control-inner-background;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 10, 0.0, 0, 3); /* same as Tooltip */
+}
+
+.popover > .border {
+    -fx-stroke: -fx-color;
+    -fx-fill: transparent;
+    -fx-stroke-width: 1;
+}
+
+.popover > .content {
+}

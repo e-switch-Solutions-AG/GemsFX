@@ -1,9 +1,11 @@
 package com.dlsc.gemsfx;
 
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import java.util.Set;
 
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Bounds;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
@@ -22,10 +24,18 @@ public class ExpandingTextArea extends TextArea {
     private double offsetTop;
     private double offsetBottom;
 
+    /**
+     * Constructs a new expanding text area.
+     */
     public ExpandingTextArea() {
         init();
     }
 
+    /**
+     * Constructs a new expanding text area with the given text.
+     *
+     * @param text the initial text
+     */
     public ExpandingTextArea(String text) {
         super(text);
         init();
@@ -33,6 +43,7 @@ public class ExpandingTextArea extends TextArea {
 
     private void init() {
         getStyleClass().add("expanding-text-area");
+        AccessibilityUtil.setRole(this, AccessibleRole.TEXT_AREA);
         setWrapText(true);
 
         sceneProperty().addListener(it -> {

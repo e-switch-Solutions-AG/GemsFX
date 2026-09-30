@@ -1,0 +1,111 @@
+@font-face {
+    font-family: 'Inter';
+    src: url('Inter-Regular.ttf');
+}
+
+@font-face {
+    font-family: 'Inter';
+    src: url('Inter-Bold.ttf');
+}
+
+.root {
+    -fx-font-family: 'Inter';
+}
+
+/*
+ * When an AtlantaFX theme is active, ensure the doc-panel ScrollPane and
+ * its viewport adopt the theme's background colour so the MarkdownView
+ * description area matches the overall dark/light theme.
+ */
+.atlantafx-active .doc-scroll-pane,
+.atlantafx-active .doc-scroll-pane > .viewport {
+    -fx-background-color: -color-bg-default;
+    -fx-background-insets: 0;
+}
+
+/* ── Header background ────────────────────────────────────── */
+.launcher-header {
+    -fx-background-color: white;
+    -fx-border-color: transparent transparent darkgrey transparent;
+    -fx-border-width: 1;
+    -fx-padding: 30px 16px 10px 16px;
+}
+
+.launcher-header.browser { /* jpro */
+    -fx-padding: 20px 16px 20px 16px;
+}
+
+.launcher-header .title-label {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+}
+
+.launcher-header .version-label {
+    -fx-font-size: 13px;
+    -fx-opacity: 0.6;
+}
+
+.atlantafx-active .launcher-header {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.atlantafx-active .launcher-header .title-label {
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+.atlantafx-active .launcher-header .version-label {
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+.atlantafx-active .tab-pane-wrapper {
+    -fx-padding: 10px;
+}
+
+.atlantafx-active .tab-pane-wrapper .tab-pane {
+    -fx-border-color: -color-border-default;
+}
+
+.markdown-view.dark .markdown-code-block {
+    -mdfx-code-theme: "/one/jpro/platform/mdfx/themes/github-light-default.json";
+}
+
+.markdown-view.light .markdown-code-block {
+    -mdfx-code-theme: "/one/jpro/platform/mdfx/themes/github-dark-default.json";
+}
+
+.atlantafx-active .markdown-view {
+    -mdfx-font-color: -color-fg-default;
+    -mdfx-link-color: -color-accent-emphasis;
+    -mdfx-border-color-1: -color-border-default;
+
+    -mdfx-bg-color-1: -color-bg-default;
+    -mdfx-bg-color-2: -color-bg-inset;
+    -mdfx-bg-color-3: red;
+
+    -mdfx-bq-color-border: -color-fg-emphasis-plus;
+    -mdfx-bq-color-background: -color-fg-emphasis;
+    -mdfx-bq-text-fill: -color-fg-emphasis;
+
+    -mdfx-code-block-border: -color-fg-emphasis;
+    -mdfx-code-block-background: -color-accent-emphasis;
+}
+
+/* ── Remove ScrollPane border in Modena ──────────────────── */
+.doc-scroll-pane {
+    -fx-border-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.launcher-footer {
+    -fx-background-color: white;
+    -fx-border-color: darkgrey transparent transparent transparent;
+    -fx-border-width: 1;
+}
+
+.atlantafx-active .launcher-footer {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default transparent transparent transparent;
+}

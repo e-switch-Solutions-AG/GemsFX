@@ -5,28 +5,37 @@ import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.SkinBase;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
-import javafx.scene.layout.Region;
 import javafx.scene.shape.Path;
 import javafx.scene.shape.PathElement;
 import javafx.scene.text.HitInfo;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
-public class TextViewSkin extends SkinBase<TextView> {
+/**
+ * Skin for {@link TextView}.
+ * <p>
+ * The skin renders selectable text in a text flow and manages selection,
+ * keyboard copy/select-all handling, and selection highlighting.
+ */
+public class TextViewSkin extends GemsSkinBase<TextView> {
 
     private final SelectableText selectableText;
 
+    /**
+     * Creates a new skin for the given text view.
+     *
+     * @param control the text view to skin
+     */
     public TextViewSkin(TextView control) {
         super(control);
 
         selectableText = new SelectableText(control);
 
-        control.addEventHandler(KeyEvent.KEY_PRESSED, evt -> {
+        registerHandler(control, KeyEvent.KEY_PRESSED, evt -> {
             if (KeyCodeCombination.keyCombination("shortcut+c").match(evt)) {
                 control.copySelection();
             } else if (KeyCodeCombination.keyCombination("shortcut+a").match(evt)) {
@@ -38,7 +47,7 @@ public class TextViewSkin extends SkinBase<TextView> {
 
         getChildren().setAll(selectableText);
 
-        control.focusedProperty().addListener(it -> {
+        register(control.focusedProperty(), it -> {
             ContextMenu contextMenu = control.getContextMenu();
             if (contextMenu != null && contextMenu.isShowing()) {
                 return;
@@ -52,7 +61,7 @@ public class TextViewSkin extends SkinBase<TextView> {
 
     @Override
     protected double computeMinHeight(double width, double topInset, double rightInset, double bottomInset, double leftInset) {
-        return selectableText.minHeight(width - leftInset - rightInset);
+        return selectableText.prefHeight(width - leftInset - rightInset);
     }
 
     @Override
@@ -62,7 +71,7 @@ public class TextViewSkin extends SkinBase<TextView> {
 
     @Override
     protected double computeMaxHeight(double width, double topInset, double rightInset, double bottomInset, double leftInset) {
-        return selectableText.maxHeight(width - leftInset - rightInset);
+        return selectableText.prefHeight(width - leftInset - rightInset);
     }
 
     private static final class SelectableText extends TextFlow {
@@ -73,6 +82,7 @@ public class TextViewSkin extends SkinBase<TextView> {
         private int mouseDragStartPos = -1;
         private int selectionStartPos = -1;
         private int selectionEndPos = -1;
+
         private final Text text = new Text();
 
         public SelectableText(TextView textView) {
@@ -81,13 +91,12 @@ public class TextViewSkin extends SkinBase<TextView> {
             this.textView = textView;
 
             setCursor(Cursor.TEXT);
-            setPrefWidth(Region.USE_PREF_SIZE);
 
             text.getStyleClass().add("text");
             text.textProperty().bind(textView.textProperty());
             text.selectionFillProperty().bind(textView.highlightTextFillProperty());
 
-            setText(text);
+            getChildren().addAll(wrappingPath, text);
 
             wrappingPath.setManaged(false);
             wrappingPath.fillProperty().bind(textView.highlightFillProperty());
@@ -120,18 +129,20 @@ public class TextViewSkin extends SkinBase<TextView> {
                 if (!e.isShiftDown()) {
                     removeSelection();
 
-                    if (e.isPrimaryButtonDown()) {
-                        switch (e.getClickCount()) {
-                            case 1:
-                                mouseDragStartPos = charIndex;
-                                break;
-                            case 2:
+                    switch (e.getClickCount()) {
+                        case 1:
+                            mouseDragStartPos = charIndex;
+                            break;
+                        case 2:
+                            if (!textView.isDisableTextSelectionByMouseClicks()) {
                                 selectWord(hit);
-                                break;
-                            case 3:
+                            }
+                            break;
+                        case 3:
+                            if (!textView.isDisableTextSelectionByMouseClicks()) {
                                 selectParagraph(hit);
-                                break;
-                        }
+                            }
+                            break;
                     }
                 } else {
                     if (charIndex >= mouseDragStartPos) {
@@ -245,11 +256,6 @@ public class TextViewSkin extends SkinBase<TextView> {
             textView.getProperties().put("selected.text", getSelectedTextAsString());
         }
 
-        public void setText(Text text) {
-            getChildren().setAll(wrappingPath);
-            getChildren().addAll(text);
-        }
-
         public void clear() {
             getChildren().setAll(wrappingPath);
         }
@@ -264,7 +270,8 @@ public class TextViewSkin extends SkinBase<TextView> {
         private StringBuilder getTextFlowContentAsString() {
             StringBuilder sb = new StringBuilder();
             for (Node node : getChildren()) {
-                if (node instanceof Text t) {
+                if (node instanceof Text) {
+                    Text t = (Text) node;
                     sb.append(t.getText());
                 }
             }
@@ -281,7 +288,7 @@ public class TextViewSkin extends SkinBase<TextView> {
         }
 
         private boolean isInvalidIndex(StringBuilder string, int charIndex) {
-            return string.isEmpty() || charIndex < 0 || charIndex >= string.length();
+            return string.length() == 0 || charIndex < 0 || charIndex >= string.length();
         }
     }
 }

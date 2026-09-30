@@ -1,11 +1,15 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.DialogPane;
+import com.dlsc.gemsfx.HiddenSidesPane;
 import com.dlsc.gemsfx.PowerPane;
-import com.dlsc.gemsfx.infocenter.*;
+import com.dlsc.gemsfx.infocenter.InfoCenterPane;
+import com.dlsc.gemsfx.infocenter.InfoCenterView;
+import com.dlsc.gemsfx.infocenter.Notification;
+import com.dlsc.gemsfx.infocenter.NotificationAction;
+import com.dlsc.gemsfx.infocenter.NotificationGroup;
+import com.dlsc.gemsfx.infocenter.NotificationView;
 import com.dlsc.pdfviewfx.PDFView;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
@@ -15,17 +19,34 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundImage;
+import javafx.scene.layout.BackgroundPosition;
+import javafx.scene.layout.BackgroundRepeat;
+import javafx.scene.layout.BackgroundSize;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-import org.controlsfx.control.HiddenSidesPane;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -33,7 +54,7 @@ import java.util.Objects;
 
 import static com.dlsc.gemsfx.DialogPane.Type.INFORMATION;
 
-public class PowerPaneApp extends Application {
+public class PowerPaneApp extends GemApplication {
 
     private DialogPane dialogPane;
     private InfoCenterPane infoCenterPane;
@@ -41,6 +62,8 @@ public class PowerPaneApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        super.start(stage);
+
         Button testMe = new Button("Test Me");
         PowerPane powerPane = new PowerPane(testMe);
 
@@ -64,6 +87,7 @@ public class PowerPaneApp extends Application {
         infoCenterPane = powerPane.getInfoCenterPane();
 
         PDFView pdfView = new PDFView();
+        pdfView.getStylesheets().add(Objects.requireNonNull(PowerPaneApp.class.getResource("pdf-view-atlanta.css")).toExternalForm());
         pdfView.setStyle("-fx-border-color: black;");
         pdfView.load(Objects.requireNonNull(PowerPaneApp.class.getResourceAsStream("tesla-manual.pdf")));
         powerPane.getDrawerStackPane().setDrawerContent(pdfView);
@@ -75,8 +99,14 @@ public class PowerPaneApp extends Application {
         showDrawerButton.setMaxWidth(Double.MAX_VALUE);
         showDrawerButton.selectedProperty().bindBidirectional(powerPane.getDrawerStackPane().showDrawerProperty());
 
+        Button scenicView = new Button("Dev Tools");
+        hideInBrowser(scenicView);
+        scenicView.setMaxWidth(Double.MAX_VALUE);
+        configureDevToolsButton(scenicView);
+
         VBox controls = new VBox(10,
                 titleLabel,
+                scenicView,
                 new Label("Drawer"),
                 showDrawerButton,
                 new Label("Dialogs"),
@@ -87,13 +117,19 @@ public class PowerPaneApp extends Application {
                 createHiddenSidesPaneControls()
         );
 
-        controls.setStyle("-fx-background-color: aliceblue;");
         controls.setPadding(new Insets(20));
 
         ScrollPane scrollPane = new ScrollPane(controls);
         scrollPane.setFitToHeight(true);
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+
+        if (Boolean.getBoolean("atlantafx")) {
+            // AtlantaFX makes the scroll pane and its viewport transparent, hence the background
+            // has to be set on the scroll pane itself. Setting it on the content would leave the
+            // strip occupied by the vertical scroll bar transparent.
+            scrollPane.setStyle("-fx-background-color: -color-bg-default;");
+        }
 
         BorderPane borderPane = new BorderPane();
         borderPane.setCenter(powerPane);
@@ -107,13 +143,12 @@ public class PowerPaneApp extends Application {
         blueprintCanvas.heightProperty().bind(stackPane.heightProperty());
 
         Scene scene = new Scene(stackPane);
-        CSSFX.start();
 
         stage.setTitle("PowerPane");
         stage.setScene(scene);
         stage.setWidth(1200);
         stage.setHeight(950);
-        stage.centerOnScreen();
+
         stage.show();
     }
 
@@ -153,13 +188,6 @@ public class PowerPaneApp extends Application {
         Button node2Button = new Button("Node 2");
         node2Button.setOnAction(evt -> dialogPane.showNode(INFORMATION, "Generic Node Dialog", createGenericNode()));
 
-        Button busyButton = new Button("Busy");
-        busyButton.setOnAction(evt -> dialogPane.showBusyIndicator().onClose(buttonType -> {
-            if (buttonType.equals(ButtonType.CANCEL)) {
-                dialogPane.showInformation("Cancelled", "The busy dialog has been cancelled via the ESC key.");
-            }
-        }));
-
         Button maxButton = new Button("Maximize");
         maxButton.setOnAction(evt -> {
             DialogPane.Dialog<Object> dialog = new DialogPane.Dialog<>(dialogPane, INFORMATION);
@@ -178,7 +206,7 @@ public class PowerPaneApp extends Application {
         });
 
         VBox vBox = new VBox(10, infoButton, warnButton, errorButton, confirmButton,
-                inputSingleLineButton, inputMultiLineButton, node1Button, node2Button, busyButton,
+                inputSingleLineButton, inputMultiLineButton, node1Button, node2Button,
                 overlappingButton, maxButton);
 
         Duration duration0 = Duration.ZERO;
@@ -223,7 +251,7 @@ public class PowerPaneApp extends Application {
             }
         });
 
-        HBox hBox = new HBox(10, new Label("Animation:"), durationBox, new Label("Style:"), styleBox);
+        HBox hBox = new HBox(10, new Label("Animation:"), durationBox, new Label("StyleType:"), styleBox);
         hBox.setAlignment(Pos.CENTER);
 
         vBox.getChildren().add(hBox);

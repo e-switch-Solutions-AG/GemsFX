@@ -1,6 +1,5 @@
 package com.dlsc.gemsfx.util;
 
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * Utility class for working with enums.
@@ -20,6 +19,7 @@ public class EnumUtil {
      * If the input string is null, returns an empty string.
      *
      * @param enumValue The enum value to convert.
+     * @param <T> the enum type
      * @return A capitalized string representation of the enum name.
      * <p> Example: 1. null -> ""
      * <p> Example: 2. MY_ENUM_VALUE -> My enum value
@@ -35,6 +35,7 @@ public class EnumUtil {
      *
      * @param enumValue The enum value to convert.
      * @param nullDefaultValue The default value to return if the input is null.
+     * @param <T> the enum type
      * @return A capitalized string representation of the enum name.
      * <p> Example: 1. null -> nullDefaultValue
      * <p> Example: 2. Example: MY_ENUM_VALUE -> My enum value
@@ -49,6 +50,7 @@ public class EnumUtil {
      * If the input string is null, returns an empty string.
      *
      * @param enumName The enum name to convert.
+     * @param <T> the enum type
      * @return A capitalized string representation of the enum name.
      * <p> Example: 1. null -> ""
      * <p> Example: 2. Example: MY_ENUM_VALUE -> My enum value
@@ -62,6 +64,7 @@ public class EnumUtil {
      * capitalizing the first letter of each word. If the enum value is null, returns an empty string.
      *
      * @param enumValue The enum value to be formatted.
+     * @param <T> the enum type
      * @return A title-cased string representation of the enum value.
      * <p> Example: 1. null -> ""
      * <p> Example: 2. MY_ENUM_VALUE -> My Enum Value
@@ -76,6 +79,7 @@ public class EnumUtil {
      *
      * @param enumValue The enum value to be formatted.
      * @param nullDefaultValue The default value to return if the input is null.
+     * @param <T> the enum type
      * @return A title-cased string representation of the enum value.
      * <p> Example: 1. null -> nullDefaultValue
      * <p> Example: 2. MY_ENUM_VALUE -> My Enum Value
@@ -89,6 +93,7 @@ public class EnumUtil {
      * capitalizing the first letter of each word. If the enum value is null, returns an empty string.
      *
      * @param enumName The string representation of the enum value to be formatted.
+     * @param <T> the enum type
      * @return A title-cased string representation of the enum value.
      * <p> Example: 1. null -> ""
      * <p> Example: 2. MY_ENUM_VALUE -> My Enum Value
@@ -103,6 +108,7 @@ public class EnumUtil {
      *
      * @param enumName The string representation of the enum value to be formatted.
      * @param nullDefaultValue The default value to return if the input is null.
+     * @param <T> the enum type
      * @return A title-cased string representation of the enum value.
      * <p> Example: 1. null -> nullDefaultValue
      * <p> Example: 2. MY_ENUM_VALUE -> My Enum Value
@@ -121,7 +127,7 @@ public class EnumUtil {
         // Use StringBuilder to build the final string
         StringBuilder result = new StringBuilder();
         for (String word : words) {
-            if (!result.isEmpty()) {
+            if (result.length() > 0) {
                 result.append(" ");
             }
             // Capitalize the first letter of each word and append to result
@@ -136,6 +142,7 @@ public class EnumUtil {
      * Does not change letter case. If the input string is null, returns an empty string.
      *
      * @param enumValue The enum value to be formatted.
+     * @param <T> the enum type
      * @return A string representation of the enum name with underscores replaced by spaces.
      * <p> Example: 1. null -> ""
      * <p> Example: 2. MY_ENUM_VALUE -> MY ENUM VALUE
@@ -149,6 +156,7 @@ public class EnumUtil {
      * Does not change letter case. If the input string is null, returns an empty string.
      *
      * @param enumName The string representation of the enum name to be formatted.
+     * @param <T> the enum type
      * @return A string representation of the enum name with underscores replaced by spaces.
      * <p> Example: 1. null -> ""
      * <p> Example: 2. MY_ENUM_VALUE -> MY ENUM VALUE
@@ -162,6 +170,7 @@ public class EnumUtil {
      * suitable for use as a CSS class name. This method does not accept null values for enumValue.
      *
      * @param enumValue The enum value to be converted. Must not be null.
+     * @param <T> the enum type
      * @return A string suitable for use as a CSS class name.
      * Example: MY_ENUM_VALUE -> my-enum-value
      */
@@ -169,11 +178,25 @@ public class EnumUtil {
         return enumValue.name().toLowerCase().replace("_", "-");
     }
 
+    /**
+     * Converts all enum constants of the given enum class to style class names.
+     *
+     * @param enumClass the enum class
+     * @param <T> the enum type
+     * @return the style class names
+     */
     public static <T extends Enum<T>> String[] convertAllToStylesClassName(Class<T> enumClass) {
         T[] enumConstants = enumClass.getEnumConstants();
         return convertAllToStylesClassName(enumConstants);
     }
 
+    /**
+     * Converts the given enum values to style class names.
+     *
+     * @param enumValues the enum values
+     * @param <T> the enum type
+     * @return the style class names
+     */
     public static <T extends Enum<T>> String[] convertAllToStylesClassName(T[] enumValues) {
         String[] styles = new String[enumValues.length];
         for (int i = 0; i < enumValues.length; i++) {

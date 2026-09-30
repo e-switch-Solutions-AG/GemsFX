@@ -1,30 +1,35 @@
 package com.dlsc.gemsfx.infocenter;
 
 import com.dlsc.gemsfx.skins.InfoCenterViewSkin;
+import com.dlsc.gemsfx.util.DurationConverter;
 import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.css.CssMetaData;
+import javafx.css.PseudoClass;
 import javafx.css.Styleable;
+import javafx.css.StyleableBooleanProperty;
 import javafx.css.StyleableDoubleProperty;
+import javafx.css.StyleableObjectProperty;
 import javafx.css.StyleableProperty;
+import javafx.css.converter.BooleanConverter;
+import javafx.css.converter.EnumConverter;
 import javafx.css.converter.SizeConverter;
+import javafx.geometry.HorizontalDirection;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.Skin;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import javafx.util.Duration;
-import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign.MaterialDesign;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,6 +37,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A view capable of displaying groups of different types of notifications. The user
@@ -40,16 +46,36 @@ import java.util.stream.Collectors;
  * so that the visibility of the view is actively managed.
  *
  * @see InfoCenterPane
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-auto-open-group}</td><td>{@code boolean}</td><td>Whether to auto-expand group on new notification.</td></tr>
+ *     <tr><td>{@code -fx-expand-duration}</td><td>{@code Duration}</td><td>Duration for expand/collapse animation.</td></tr>
+ *     <tr><td>{@code -fx-notification-spacing}</td><td>{@code double}</td><td>Spacing between notifications in the same group.</td></tr>
+ *     <tr><td>{@code -fx-show-all-fade-duration}</td><td>{@code Duration}</td><td>Duration for fade animation when toggling views.</td></tr>
+ *     <tr><td>{@code -fx-slide-in-duration}</td><td>{@code Duration}</td><td>Duration for slide-in/slide-out animation.</td></tr>
+ *     <tr><td>{@code -fx-slide-in-origin}</td><td>{@code left | right}</td><td>Edge from which a notification slides in.</td></tr>
+ *     <tr><td>{@code -fx-transparent}</td><td>{@code boolean}</td><td>Whether the control background is transparent.</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class InfoCenterView extends Control {
 
     private static final String TRANSPARENT = "transparent";
     private static final double DEFAULT_NOTIFICATION_SPACING = 10.0;
+    private static final Duration DEFAULT_SHOW_ALL_FADE_DURATION = Duration.millis(300);
     private static final Duration DEFAULT_EXPAND_DURATION = Duration.millis(300);
     private static final Duration DEFAULT_SLIDE_IN_DURATION = Duration.millis(500);
     private static final boolean DEFAULT_AUTO_OPEN_GROUP = false;
     private static final boolean DEFAULT_TRANSPARENT = false;
+    private static final HorizontalDirection DEFAULT_SLIDE_IN_ORIGIN = HorizontalDirection.RIGHT;
     private static final Node DEFAULT_PLACEHOLDER = createDefaultPlaceholder();
+
+    private static final PseudoClass LEFT_PSEUDO_CLASS = PseudoClass.getPseudoClass("left");
+    private static final PseudoClass RIGHT_PSEUDO_CLASS = PseudoClass.getPseudoClass("right");
 
     private final InvalidationListener updateNotificationsListener = it -> updateNotificationsList();
 
@@ -64,6 +90,7 @@ public class InfoCenterView extends Control {
      */
     public InfoCenterView() {
         getStyleClass().add("info-center-view");
+        AccessibilityUtil.setRole(this, AccessibleRole.LIST_VIEW, ResourceBundleManager.getString(ResourceBundleManager.BundleType.INFO_CENTER_VIEW, "accessible.role-description", "notifications"));
 
         ListChangeListener<? super NotificationGroup<?, ?>> groupListListener = change -> {
             while (change.next()) {
@@ -88,7 +115,15 @@ public class InfoCenterView extends Control {
 
         getGroups().addListener(groupListListener);
 
+        updateSlideInOriginPseudoClass(DEFAULT_SLIDE_IN_ORIGIN);
+
         setFocusTraversable(false);
+    }
+
+    private void updateSlideInOriginPseudoClass(HorizontalDirection origin) {
+        boolean isLeft = origin == HorizontalDirection.LEFT;
+        pseudoClassStateChanged(LEFT_PSEUDO_CLASS, isLeft);
+        pseudoClassStateChanged(RIGHT_PSEUDO_CLASS, !isLeft);
     }
 
     @Override
@@ -156,7 +191,7 @@ public class InfoCenterView extends Control {
     /**
      * A read-only list of the currently unpinned groups.
      *
-     * @return the list of pinned groups
+     * @return the list of unpinned groups
      */
     public final ObservableList<NotificationGroup<?, ?>> getUnmodifiableUnpinnedGroups() {
         return unmodifiableUnpinnedGroups;
@@ -205,14 +240,33 @@ public class InfoCenterView extends Control {
     }
 
     /**
-     * Groups can be opened automatically when a notification gets added to them. The
-     * default is false.
+     * Groups can be opened automatically when a notification gets added to them.
+     * <p>
+     * Can be set via CSS using the {@code -fx-auto-open-group} property.
+     * Valid values are: {@code true}, {@code false}.
+     * The default value is {@code false}.
+     * </p>
      *
      * @return true if the group of a newly added notification should be automatically expanded
      */
     public final BooleanProperty autoOpenGroupProperty() {
         if (autoOpenGroup == null) {
-            autoOpenGroup = new SimpleBooleanProperty(this, "autoOpenGroup", DEFAULT_AUTO_OPEN_GROUP);
+            autoOpenGroup = new StyleableBooleanProperty(DEFAULT_AUTO_OPEN_GROUP) {
+                @Override
+                public Object getBean() {
+                    return InfoCenterView.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "autoOpenGroup";
+                }
+
+                @Override
+                public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+                    return StyleableProperties.AUTO_OPEN_GROUP;
+                }
+            };
         }
         return autoOpenGroup;
     }
@@ -279,7 +333,22 @@ public class InfoCenterView extends Control {
         this.showAllGroup.set(showAllGroup);
     }
 
-    private final ObjectProperty<Duration> showAllFadeDuration = new SimpleObjectProperty<>(this, "showAllFadeDuration", Duration.millis(300));
+    private final ObjectProperty<Duration> showAllFadeDuration = new StyleableObjectProperty<>(DEFAULT_SHOW_ALL_FADE_DURATION) {
+        @Override
+        public Object getBean() {
+            return InfoCenterView.this;
+        }
+
+        @Override
+        public String getName() {
+            return "showAllFadeDuration";
+        }
+
+        @Override
+        public CssMetaData<? extends Styleable, Duration> getCssMetaData() {
+            return StyleableProperties.SHOW_ALL_FADE_DURATION;
+        }
+    };
 
     public final Duration getShowAllFadeDuration() {
         return showAllFadeDuration.get();
@@ -288,6 +357,11 @@ public class InfoCenterView extends Control {
     /**
      * The duration used for the animation when switching between the standard view
      * and the "show all" view.
+     * <p>
+     * Can be set via CSS using the {@code -fx-show-all-fade-duration} property.
+     * Valid values are numeric millisecond values, e.g. {@code 300}.
+     * The default value is {@code 300}.
+     * </p>
      *
      * @return the duration for the fade-in / fade-out animation used for toggling views
      */
@@ -308,12 +382,32 @@ public class InfoCenterView extends Control {
     /**
      * The duration used for the expand / collapse animation when the view opens or closes
      * a group.
+     * <p>
+     * Can be set via CSS using the {@code -fx-expand-duration} property.
+     * Valid values are numeric millisecond values, e.g. {@code 300}.
+     * The default value is {@code 300}.
+     * </p>
      *
      * @return the expand / collapse animation duration
      */
     public final ObjectProperty<Duration> expandDurationProperty() {
         if (expandDuration == null) {
-            expandDuration = new SimpleObjectProperty<>(this, "expandDuration", DEFAULT_EXPAND_DURATION);
+            expandDuration = new StyleableObjectProperty<>(DEFAULT_EXPAND_DURATION) {
+                @Override
+                public Object getBean() {
+                    return InfoCenterView.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "expandDuration";
+                }
+
+                @Override
+                public CssMetaData<? extends Styleable, Duration> getCssMetaData() {
+                    return StyleableProperties.EXPAND_DURATION;
+                }
+            };
         }
         return expandDuration;
     }
@@ -330,18 +424,101 @@ public class InfoCenterView extends Control {
 
     /**
      * The duration used for animating the slide-in / slide-out of a notification.
+     * <p>
+     * Can be set via CSS using the {@code -fx-slide-in-duration} property.
+     * Valid values are numeric millisecond values, e.g. {@code 500}.
+     * The default value is {@code 500}.
+     * </p>
      *
      * @return the slide-in duration of a new notification
      */
     public final ObjectProperty<Duration> slideInDurationProperty() {
         if (slideInDuration == null) {
-            slideInDuration = new SimpleObjectProperty<>(this, "slideInDuration", DEFAULT_SLIDE_IN_DURATION);
+            slideInDuration = new StyleableObjectProperty<>(DEFAULT_SLIDE_IN_DURATION) {
+                @Override
+                public Object getBean() {
+                    return InfoCenterView.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "slideInDuration";
+                }
+
+                @Override
+                public CssMetaData<? extends Styleable, Duration> getCssMetaData() {
+                    return StyleableProperties.SLIDE_IN_DURATION;
+                }
+            };
         }
         return slideInDuration;
     }
 
     public final void setSlideInDuration(Duration slideInDuration) {
         slideInDurationProperty().set(slideInDuration);
+    }
+
+    private ObjectProperty<HorizontalDirection> slideInOrigin;
+
+    public final HorizontalDirection getSlideInOrigin() {
+        return slideInOrigin == null ? DEFAULT_SLIDE_IN_ORIGIN : slideInOrigin.get();
+    }
+
+    /**
+     * The edge from which a newly added notification slides into view. The default
+     * value is {@link HorizontalDirection#RIGHT}. When the view is placed on the
+     * left side of its container, applications should set this to
+     * {@link HorizontalDirection#LEFT} so that the slide-in animation matches
+     * the view's anchor side.
+     * <p>
+     * Can be set via CSS using the {@code -fx-slide-in-origin} property.
+     * Valid values are: {@code left}, {@code right}.
+     * The default value is {@code right}.
+     * </p>
+     * <p>
+     * When this view is managed by an {@link InfoCenterPane}, the pane <b>binds</b>
+     * this property to its {@link InfoCenterPane#infoCenterViewPosProperty()};
+     * in that case callers must control the direction via
+     * {@link InfoCenterPane#infoCenterViewPosProperty()}, since calling the
+     * setter on a bound property throws a {@link RuntimeException}.
+     * <p>
+     * A {@code null} value is treated as {@link HorizontalDirection#RIGHT} by
+     * the slide-in animation and the {@code :left} / {@code :right}
+     * pseudo-classes. The getter itself returns the raw property value and may
+     * therefore return {@code null} if the property has been explicitly set to
+     * {@code null} or bound to a {@code null}-producing binding.
+     *
+     * @return the slide origin of newly added notifications
+     */
+    public final ObjectProperty<HorizontalDirection> slideInOriginProperty() {
+        if (slideInOrigin == null) {
+            slideInOrigin = new StyleableObjectProperty<>(DEFAULT_SLIDE_IN_ORIGIN) {
+                @Override
+                protected void invalidated() {
+                    updateSlideInOriginPseudoClass(get());
+                }
+
+                @Override
+                public Object getBean() {
+                    return InfoCenterView.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "slideInOrigin";
+                }
+
+                @Override
+                public CssMetaData<? extends Styleable, HorizontalDirection> getCssMetaData() {
+                    return StyleableProperties.SLIDE_IN_ORIGIN;
+                }
+            };
+        }
+        return slideInOrigin;
+    }
+
+    public final void setSlideInOrigin(HorizontalDirection slideInOrigin) {
+        slideInOriginProperty().set(slideInOrigin);
     }
 
     private BooleanProperty transparent;
@@ -353,15 +530,35 @@ public class InfoCenterView extends Control {
     /**
      * Determines whether the control will be transparent or not.
      * By default, a semi-transparent black background is showing.
+     * <p>
+     * Can be set via CSS using the {@code -fx-transparent} property.
+     * Valid values are: {@code true}, {@code false}.
+     * The default value is {@code false}.
+     * </p>
      *
-     * @return true if the control is not transparent
+     * @return true if the control is transparent
      */
     public final BooleanProperty transparentProperty() {
         if (transparent == null) {
-            transparent = new SimpleBooleanProperty(this, "transparent", DEFAULT_TRANSPARENT) {
+            transparent = new StyleableBooleanProperty(DEFAULT_TRANSPARENT) {
                 @Override
                 protected void invalidated() {
                     updateStyle();
+                }
+
+                @Override
+                public Object getBean() {
+                    return InfoCenterView.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "transparent";
+                }
+
+                @Override
+                public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+                    return StyleableProperties.TRANSPARENT_PROPERTY;
                 }
             };
         }
@@ -375,7 +572,7 @@ public class InfoCenterView extends Control {
     private ObjectProperty<Node> placeholder;
 
     /**
-     * A placeholder node that is shown when the info is empty.
+     * A placeholder node that is shown when the view has no notifications.
      *
      * @return the placeholder node
      */
@@ -395,12 +592,7 @@ public class InfoCenterView extends Control {
     }
 
     private static StackPane createDefaultPlaceholder() {
-        FontIcon graphic = new FontIcon(MaterialDesign.MDI_CREATION);
-        graphic.setIconSize(20);
-        graphic.setIconColor(Color.WHITE);
-
-        Label noNotifications = new Label("No notifications", graphic);
-
+        Label noNotifications = new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.INFO_CENTER_VIEW, "placeholder.no-notifications", "No notifications"));
         StackPane placeholder = new StackPane(noNotifications);
         placeholder.getStyleClass().add("default-placeholder");
         return placeholder;
@@ -460,11 +652,95 @@ public class InfoCenterView extends Control {
                     }
                 };
 
+        private static final CssMetaData<InfoCenterView, Boolean> AUTO_OPEN_GROUP =
+                new CssMetaData<>("-fx-auto-open-group", BooleanConverter.getInstance(), DEFAULT_AUTO_OPEN_GROUP) {
+                    @Override
+                    public boolean isSettable(InfoCenterView view) {
+                        return view.autoOpenGroup == null || !view.autoOpenGroup.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Boolean> getStyleableProperty(InfoCenterView view) {
+                        return (StyleableProperty<Boolean>) view.autoOpenGroupProperty();
+                    }
+                };
+
+        private static final CssMetaData<InfoCenterView, Boolean> TRANSPARENT_PROPERTY =
+                new CssMetaData<>("-fx-transparent", BooleanConverter.getInstance(), DEFAULT_TRANSPARENT) {
+                    @Override
+                    public boolean isSettable(InfoCenterView view) {
+                        return view.transparent == null || !view.transparent.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Boolean> getStyleableProperty(InfoCenterView view) {
+                        return (StyleableProperty<Boolean>) view.transparentProperty();
+                    }
+                };
+
+        private static final CssMetaData<InfoCenterView, Duration> SHOW_ALL_FADE_DURATION =
+                new CssMetaData<>("-fx-show-all-fade-duration", DurationConverter.getInstance(), DEFAULT_SHOW_ALL_FADE_DURATION) {
+                    @Override
+                    public boolean isSettable(InfoCenterView view) {
+                        return !view.showAllFadeDuration.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Duration> getStyleableProperty(InfoCenterView view) {
+                        return (StyleableProperty<Duration>) view.showAllFadeDurationProperty();
+                    }
+                };
+
+        private static final CssMetaData<InfoCenterView, Duration> EXPAND_DURATION =
+                new CssMetaData<>("-fx-expand-duration", DurationConverter.getInstance(), DEFAULT_EXPAND_DURATION) {
+                    @Override
+                    public boolean isSettable(InfoCenterView view) {
+                        return view.expandDuration == null || !view.expandDuration.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Duration> getStyleableProperty(InfoCenterView view) {
+                        return (StyleableProperty<Duration>) view.expandDurationProperty();
+                    }
+                };
+
+        private static final CssMetaData<InfoCenterView, Duration> SLIDE_IN_DURATION =
+                new CssMetaData<>("-fx-slide-in-duration", DurationConverter.getInstance(), DEFAULT_SLIDE_IN_DURATION) {
+                    @Override
+                    public boolean isSettable(InfoCenterView view) {
+                        return view.slideInDuration == null || !view.slideInDuration.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<Duration> getStyleableProperty(InfoCenterView view) {
+                        return (StyleableProperty<Duration>) view.slideInDurationProperty();
+                    }
+                };
+
+        private static final CssMetaData<InfoCenterView, HorizontalDirection> SLIDE_IN_ORIGIN =
+                new CssMetaData<>("-fx-slide-in-origin", new EnumConverter<>(HorizontalDirection.class), DEFAULT_SLIDE_IN_ORIGIN) {
+                    @Override
+                    public boolean isSettable(InfoCenterView view) {
+                        return view.slideInOrigin == null || !view.slideInOrigin.isBound();
+                    }
+
+                    @Override
+                    public StyleableProperty<HorizontalDirection> getStyleableProperty(InfoCenterView view) {
+                        return (StyleableProperty<HorizontalDirection>) view.slideInOriginProperty();
+                    }
+                };
+
         private static final List<CssMetaData<? extends Styleable, ?>> STYLEABLES;
 
         static {
             final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(Control.getClassCssMetaData());
             styleables.add(NOTIFICATION_SPACING);
+            styleables.add(AUTO_OPEN_GROUP);
+            styleables.add(TRANSPARENT_PROPERTY);
+            styleables.add(SHOW_ALL_FADE_DURATION);
+            styleables.add(EXPAND_DURATION);
+            styleables.add(SLIDE_IN_DURATION);
+            styleables.add(SLIDE_IN_ORIGIN);
             STYLEABLES = Collections.unmodifiableList(styleables);
         }
     }
@@ -474,10 +750,18 @@ public class InfoCenterView extends Control {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata supported by this control class.
+     *
+     * @return the CSS metadata for this control class
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return InfoCenterView.StyleableProperties.STYLEABLES;
     }
 
+    /**
+     * Removes all notifications from all groups.
+     */
     public void clearAll() {
         getGroups().forEach(group -> group.getNotifications().clear());
     }

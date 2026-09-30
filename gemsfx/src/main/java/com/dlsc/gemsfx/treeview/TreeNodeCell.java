@@ -19,6 +19,14 @@ import javafx.scene.layout.StackPane;
 
 import java.util.Objects;
 
+/**
+ * Default visual cell used by {@link TreeNodeView} to render a {@link TreeNode}.
+ * <p>
+ * The cell displays text and an optional graphic, binds its expanded state to the
+ * associated tree node, and shows a disclosure arrow when children are available.
+ *
+ * @param <T> the type of the item represented by this cell
+ */
 public class TreeNodeCell<T> extends BorderPane {
 
     private static final boolean DEFAULT_EXPANDED = true;
@@ -30,6 +38,9 @@ public class TreeNodeCell<T> extends BorderPane {
     private final Label innerLabel;
     private final StackPane arrowWrapper;
 
+    /**
+     * Creates an empty tree node cell.
+     */
     public TreeNodeCell() {
         getStyleClass().setAll(DEFAULT_STYLE_CLASS);
         innerLabel = new Label();
@@ -79,6 +90,11 @@ public class TreeNodeCell<T> extends BorderPane {
 
     }
 
+    /**
+     * Creates a tree node cell for the given item.
+     *
+     * @param item the item displayed by this cell
+     */
     public TreeNodeCell(T item) {
         this();
         setItem(item);
@@ -86,74 +102,104 @@ public class TreeNodeCell<T> extends BorderPane {
 
     private final ObjectProperty<T> item = new SimpleObjectProperty<>(this, "item");
 
-    public T getItem() {
+    public final T getItem() {
         return item.get();
     }
 
-    public ObjectProperty<T> itemProperty() {
+    /**
+     * The item property.
+     *
+     * @return the item property
+     */
+    public final ObjectProperty<T> itemProperty() {
         return item;
     }
 
-    public void setItem(T item) {
+    public final void setItem(T item) {
         this.item.set(item);
     }
 
     private final ReadOnlyObjectWrapper<TreeNode<T>> treeNode = new ReadOnlyObjectWrapper<>(this, "treeNode");
 
-    public TreeNode<T> getTreeNode() {
+    public final TreeNode<T> getTreeNode() {
         return treeNode.get();
     }
 
-    public ReadOnlyObjectProperty<TreeNode<T>> treeNodeProperty() {
+    /**
+     * The read-only tree node property.
+     *
+     * @return the tree node property
+     */
+    public final ReadOnlyObjectProperty<TreeNode<T>> treeNodeProperty() {
         return treeNode.getReadOnlyProperty();
     }
 
-    protected void setTreeNode(TreeNode<T> treeNode) {
+    protected final void setTreeNode(TreeNode<T> treeNode) {
         this.treeNode.set(treeNode);
     }
 
     private final BooleanProperty expanded = new SimpleBooleanProperty(this, "expanded", DEFAULT_EXPANDED);
 
-    public boolean isExpanded() {
+    public final boolean isExpanded() {
         return expanded.get();
     }
 
-    public BooleanProperty expandedProperty() {
+    /**
+     * The expanded property.
+     *
+     * @return the expanded property
+     */
+    public final BooleanProperty expandedProperty() {
         return expanded;
     }
 
-    public void setExpanded(boolean expanded) {
+    public final void setExpanded(boolean expanded) {
         this.expanded.set(expanded);
     }
 
     private final ObjectProperty<Node> graphic = new SimpleObjectProperty<>(this, "graphic");
 
-    public Node getGraphic() {
+    public final Node getGraphic() {
         return graphic.get();
     }
 
-    public ObjectProperty<Node> graphicProperty() {
+    /**
+     * The graphic property.
+     *
+     * @return the graphic property
+     */
+    public final ObjectProperty<Node> graphicProperty() {
         return graphic;
     }
 
-    public void setGraphic(Node graphic) {
+    public final void setGraphic(Node graphic) {
         this.graphic.set(graphic);
     }
 
     private final StringProperty text = new SimpleStringProperty(this, "text");
 
-    public String getText() {
+    public final String getText() {
         return text.get();
     }
 
-    public StringProperty textProperty() {
+    /**
+     * The text property.
+     *
+     * @return the text property
+     */
+    public final StringProperty textProperty() {
         return text;
     }
 
-    public void setText(String text) {
+    public final void setText(String text) {
         this.text.set(text);
     }
 
+    /**
+     * Updates this cell's displayed content for the given item.
+     *
+     * @param item the new item value
+     */
     protected void updateItem(T item) {
         if (item != null) {
             setText(item.toString());

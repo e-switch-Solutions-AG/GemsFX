@@ -1,10 +1,13 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.CalendarPickerSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.css.PseudoClass;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Skin;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
@@ -13,7 +16,7 @@ import javafx.scene.layout.Region;
 import javafx.util.Callback;
 import javafx.util.StringConverter;
 import javafx.util.converter.LocalDateStringConverter;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.Objects;
@@ -38,6 +41,12 @@ public class CalendarPicker extends CustomComboBox<LocalDate> {
         super();
 
         getStyleClass().setAll("calendar-picker", "text-input");
+        AccessibilityUtil.setRole(this, AccessibleRole.DATE_PICKER);
+        AccessibilityUtil.bindAccessibleText(this, Bindings.createStringBinding(() -> {
+            LocalDate value = getValue();
+            StringConverter<LocalDate> converter = getConverter();
+            return value == null ? null : converter != null ? converter.toString(value) : value.toString();
+        }, valueProperty(), converterProperty()));
 
         setEditable(true);
 
@@ -84,7 +93,9 @@ public class CalendarPicker extends CustomComboBox<LocalDate> {
             }
         });
 
-        setMaxWidth(Region.USE_PREF_SIZE);
+        setMinSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
         updateTextAndHidePopup();
     }
 
@@ -97,11 +108,21 @@ public class CalendarPicker extends CustomComboBox<LocalDate> {
         show();
     }
 
+    /**
+     * Creates the default skin for this control.
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new CalendarPickerSkin(this);
     }
 
+    /**
+     * Returns the stylesheet used by this control.
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(CalendarPicker.class.getResource("calendar-picker.css")).toExternalForm();

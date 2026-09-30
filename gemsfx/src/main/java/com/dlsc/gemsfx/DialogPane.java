@@ -8,8 +8,12 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.RotateTransition;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
+import javafx.beans.WeakInvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.BooleanPropertyBase;
 import javafx.beans.property.DoubleProperty;
@@ -37,12 +41,21 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Skin;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.control.skin.ButtonBarSkin;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -57,17 +70,24 @@ import javafx.util.Callback;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import net.synedra.validatorfx.Validator;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign.MaterialDesign;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.prefs.Preferences;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A pane that allows applications to display a lightweight dialog right inside the application
@@ -78,30 +98,25 @@ import java.util.prefs.Preferences;
  * of the window. If the application is using a StackPane as its root container then the dialog
  * pane can simply be added as the last child of the StackPane.
  * </p>
- * <h3>Example</h3>
+ * <h2>Example</h2>
  * To show an information dialog one can simply call:
- * <p>
  * <pre>
  *    dialogPane.showInformation("My Title", "My message");
  * </pre>
- * </p>
  * <p>
  * If an application wants to act upon the button that was pressed after showing a confirmation dialog
  * then the following can be written:
- * <p>
  * <pre>
  *     dialogPane.showConfirmation("Confirm", "Really delete?").onClose(buttonType -> { ... });
  * </pre>
- * </p>
  * The pane supports factories for creating the header and the footer. This allows application developers
  * to completely replace those elements of the dialogs. Default factories are already registered and will
  * be used if not replaced.
  *
  * @see #setHeaderFactory(Callback)
  * @see #setFooterFactory(Callback)
- * </p>
  */
-public class DialogPane extends Pane {
+public class DialogPane extends StackPane {
 
     private static final String MESSAGE_LABEL_STYLE_CLASS = "message-label";
 
@@ -113,16 +128,35 @@ public class DialogPane extends Pane {
 
     private final EventHandler<KeyEvent> escapeHandler = evt -> {
         if (KeyCombination.keyCombination("ESC+SHIFT").match(evt)) {
-            hideAllDialogs();
+            if (cancelDialogsFromTop()) {
+                evt.consume();
+            }
         } else if (evt.getCode() == KeyCode.ESCAPE) { // hide the last dialog that was opened
             ObservableList<Dialog<?>> dialogs = getDialogs();
             if (!dialogs.isEmpty()) {
                 Dialog<?> dialog = dialogs.get(dialogs.size() - 1);
-                dialog.cancel();
-                evt.consume();
+                if (dialog.requestCancel()) {
+                    evt.consume();
+                }
             }
         }
     };
+
+    /*
+     * Cancels the dialogs from the top-most one downwards and stops as soon as a dialog
+     * is encountered that can not be cancelled.
+     */
+    private boolean cancelDialogsFromTop() {
+        List<Dialog<?>> list = new ArrayList<>(getDialogs());
+        boolean cancelledAny = false;
+        for (int i = list.size() - 1; i >= 0; i--) {
+            if (!list.get(i).requestCancel()) {
+                break;
+            }
+            cancelledAny = true;
+        }
+        return cancelledAny;
+    }
 
     private final WeakEventHandler<KeyEvent> weakEscapeHandler = new WeakEventHandler<>(escapeHandler);
 
@@ -308,8 +342,10 @@ public class DialogPane extends Pane {
     }
 
     /**
-     * Makes the given dialog visible in the pane.
+     * Makes the given dialog visible in the pane. A dialog can define a delay duration which will
+     * be used to delay the appearance of the dialog.
      *
+     * @see Dialog#delayProperty()
      * @param dialog the dialog to show
      * @throws IllegalArgumentException when the given dialog belongs to a different dialog pane
      */
@@ -317,19 +353,33 @@ public class DialogPane extends Pane {
         if (dialog.getDialogPane() != this) {
             throw new IllegalArgumentException("the given dialog does not belong to this dialog pane");
         }
-        dialogs.add(dialog);
+        Duration delay = dialog.getDelay();
+        if (delay != null) {
+            Thread thread = new Thread(() -> {
+                try {
+                    Thread.sleep((long) delay.toMillis());
+                    Platform.runLater(() -> {
+                        if (!dialog.cancelled) {
+                            dialogs.add(dialog);
+                        }
+                    });
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }, "show-dialog-delay");
+            thread.setDaemon(true);
+            thread.start();
+        } else {
+            dialogs.add(dialog);
+        }
     }
 
     /**
      * Hides the given dialog.
      *
      * @param dialog the dialog to hide
-     * @throws IllegalArgumentException when the given dialog belongs to a different dialog pane
      */
     public void hideDialog(Dialog<?> dialog) {
-        if (!dialogs.contains(dialog)) {
-            throw new IllegalArgumentException("the given dialog does not belong to this dialog pane");
-        }
         dialogs.remove(dialog);
     }
 
@@ -416,7 +466,7 @@ public class DialogPane extends Pane {
      * @param title   the title for the dialog
      * @param message the main error message
      * @param details additional details
-     * @param onSend an optional action to send out / forward the error message
+     * @param onSend  an optional action to send out / forward the error message
      * @return the dialog
      */
     public final Dialog<Void> showError(String title, String message, String details, Runnable onSend) {
@@ -441,6 +491,8 @@ public class DialogPane extends Pane {
             textArea.setResizeVertical(true);
             textArea.setEditable(false);
             textArea.getStyleClass().add("error-text-area");
+            textArea.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            VBox.setVgrow(textArea, Priority.ALWAYS);
 
             if (onSend != null) {
                 ButtonType button = new ButtonType(getSendButtonText(), ButtonBar.ButtonData.LEFT);
@@ -456,8 +508,6 @@ public class DialogPane extends Pane {
             VBox content = new VBox(messageLabel, textArea);
             content.getStyleClass().add("error-container");
             dialog.setContent(content);
-
-            FocusUtil.requestFocus(textArea);
         }
 
         dialog.show();
@@ -465,12 +515,17 @@ public class DialogPane extends Pane {
         return dialog;
     }
 
-    private final StringProperty sendButtonText = new SimpleStringProperty(this, "sendButtonText", "Send");
+    private final StringProperty sendButtonText = new SimpleStringProperty(this, "sendButtonText", ResourceBundleManager.getString(ResourceBundleManager.BundleType.DIALOG_PANE, "button.send", "Send"));
 
     public final String getSendButtonText() {
         return sendButtonText.get();
     }
 
+    /**
+     * The text used for the send button in error dialogs with details.
+     *
+     * @return the send button text property
+     */
     public final StringProperty sendButtonTextProperty() {
         return sendButtonText;
     }
@@ -495,6 +550,7 @@ public class DialogPane extends Pane {
      *
      * @param title   the text shown in the header of the dialog
      * @param message the warning message
+     * @param buttonTypes the buttons to show in the footer
      * @return the dialog
      */
     public final Dialog<ButtonType> showWarning(String title, String message, List<ButtonType> buttonTypes) {
@@ -605,6 +661,7 @@ public class DialogPane extends Pane {
      * @param prompt    the prompt text for the text input control
      * @param text      the initial text to show
      * @param multiline if true the dialog will show a text area, otherwise a text field
+     * @param buttonTypes the buttons to show in the footer
      * @return the dialog
      */
     public final Dialog<String> showTextInput(String title, String message, String prompt, String text, boolean multiline, List<ButtonType> buttonTypes) {
@@ -625,7 +682,9 @@ public class DialogPane extends Pane {
             textInputControl = textField;
         }
 
-        FocusUtil.requestFocus(textInputControl);
+//        FocusUtil.requestFocus(textInputControl);
+
+        Platform.runLater(textInputControl::requestFocus);
 
         VBox box = new VBox();
         box.getStyleClass().add("prompt-node-wrapper");
@@ -774,7 +833,7 @@ public class DialogPane extends Pane {
     /**
      * Creates and shows a dialog that shows a busy indicator / busy animation.
      *
-     * @return the create dialog
+     * @return the created dialog
      */
     public final Dialog<Void> showBusyIndicator() {
         BusyIndicator busyIndicator = new BusyIndicator();
@@ -969,8 +1028,21 @@ public class DialogPane extends Pane {
 
         for (ContentPane contentPane : dialogContentPanes) {
 
-            double dialogWidth = Math.min(contentPane.maxWidth(contentHeight), Math.max(contentPane.minWidth(contentHeight), contentPane.prefWidth(contentHeight)));
-            double dialogHeight = Math.min(contentPane.maxHeight(contentWidth), Math.max(contentPane.minHeight(contentWidth), contentPane.prefHeight(contentWidth)));
+            Orientation contentBias = contentPane.getContentBias();
+            if (contentBias == null) {
+                contentBias = Orientation.VERTICAL;
+            }
+
+            double dialogWidth;
+            double dialogHeight;
+
+            if (contentBias == Orientation.HORIZONTAL) {
+                dialogWidth = Math.min(contentPane.maxWidth(Region.USE_COMPUTED_SIZE), Math.max(contentPane.minWidth(Region.USE_COMPUTED_SIZE), contentPane.prefWidth(Region.USE_COMPUTED_SIZE)));
+                dialogHeight = Math.min(contentPane.maxHeight(dialogWidth), Math.max(contentPane.minHeight(dialogWidth), contentPane.prefHeight(dialogWidth)));
+            } else {
+                dialogHeight = Math.min(contentPane.maxHeight(Region.USE_COMPUTED_SIZE), Math.max(contentPane.minHeight(Region.USE_COMPUTED_SIZE), contentPane.prefHeight(Region.USE_COMPUTED_SIZE)));
+                dialogWidth = Math.min(contentPane.maxWidth(dialogHeight), Math.max(contentPane.minWidth(dialogHeight), contentPane.prefWidth(dialogHeight)));
+            }
 
             Dialog<?> dialog = contentPane.getDialog();
 
@@ -1101,10 +1173,8 @@ public class DialogPane extends Pane {
                     getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
                     break;
                 case INFORMATION:
-                    getButtonTypes().setAll(ButtonType.OK);
-                    break;
                 case ERROR:
-                    getButtonTypes().setAll(ButtonType.CLOSE);
+                    getButtonTypes().setAll(ButtonType.OK);
                     break;
                 case CONFIRMATION:
                     getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
@@ -1116,7 +1186,9 @@ public class DialogPane extends Pane {
 
             setOnResize(new DefaultResizeHandler(this));
 
-            preferencesProperty().subscribe(preferences -> {
+            cancellable.bind(Bindings.createBooleanBinding(() -> findCancelButtonType().isPresent(), buttonTypes));
+
+            preferencesProperty().addListener((obs, oldPreferences, preferences) -> {
                 if (preferences != null) {
                     double width = preferences.getDouble("width", -1d);
                     if (width != -1d) {
@@ -1128,6 +1200,17 @@ public class DialogPane extends Pane {
                     }
                 }
             });
+            Preferences preferences = getPreferences();
+            if (preferences != null) {
+                double width = preferences.getDouble("width", -1d);
+                if (width != -1d) {
+                    setPrefWidth(width);
+                }
+                double height = preferences.getDouble("height", -1d);
+                if (height != -1d) {
+                    setPrefHeight(height);
+                }
+            }
         }
 
         /**
@@ -1199,6 +1282,11 @@ public class DialogPane extends Pane {
             return prefWidth.get();
         }
 
+        /**
+         * The preferred width requested for this dialog.
+         *
+         * @return the preferred width property
+         */
         public final DoubleProperty prefWidthProperty() {
             return prefWidth;
         }
@@ -1213,6 +1301,11 @@ public class DialogPane extends Pane {
             return prefHeight.get();
         }
 
+        /**
+         * The preferred height requested for this dialog.
+         *
+         * @return the preferred height property
+         */
         public final DoubleProperty prefHeightProperty() {
             return prefHeight;
         }
@@ -1227,6 +1320,11 @@ public class DialogPane extends Pane {
             return minWidth.get();
         }
 
+        /**
+         * The minimum width requested for this dialog.
+         *
+         * @return the minimum width property
+         */
         public final DoubleProperty minWidthProperty() {
             return minWidth;
         }
@@ -1241,6 +1339,11 @@ public class DialogPane extends Pane {
             return minHeight.get();
         }
 
+        /**
+         * The minimum height requested for this dialog.
+         *
+         * @return the minimum height property
+         */
         public final DoubleProperty minHeightProperty() {
             return minHeight;
         }
@@ -1255,6 +1358,11 @@ public class DialogPane extends Pane {
             return maxWidth.get();
         }
 
+        /**
+         * The maximum width requested for this dialog.
+         *
+         * @return the maximum width property
+         */
         public final DoubleProperty maxWidthProperty() {
             return maxWidth;
         }
@@ -1269,6 +1377,11 @@ public class DialogPane extends Pane {
             return maxHeight.get();
         }
 
+        /**
+         * The maximum height requested for this dialog.
+         *
+         * @return the maximum height property
+         */
         public final DoubleProperty maxHeightProperty() {
             return maxHeight;
         }
@@ -1348,7 +1461,7 @@ public class DialogPane extends Pane {
 
         // delay
 
-        private final ObjectProperty<Duration> delay = new SimpleObjectProperty<>(this, "delay", Duration.ZERO);
+        private final ObjectProperty<Duration> delay = new SimpleObjectProperty<>(this, "delay");
 
         public final Duration getDelay() {
             return delay.get();
@@ -1360,7 +1473,7 @@ public class DialogPane extends Pane {
          * a progress indicator as usually you only want those to appear if a background
          * operation takes a while.
          *
-         * @return the delay before the dialog becomes visible, default is ZERO
+         * @return the delay before the dialog becomes visible, default is null.
          */
         public final ObjectProperty<Duration> delayProperty() {
             return delay;
@@ -1438,23 +1551,100 @@ public class DialogPane extends Pane {
             this.value.set(value);
         }
 
+        /**
+         * Shows this dialog in its owning {@link DialogPane}.
+         */
         public void show() {
             pane.showDialog(this);
         }
+
+        private boolean cancelled = false;
 
         /**
          * Hides the dialog by cancelling it.
          */
         public void cancel() {
+            cancelled = true;
             pane.hideDialog(this);
             setValue(null);
             commit(ButtonType.CANCEL);
+        }
+
+        /**
+         * Cancels the dialog, but only if it is actually cancellable (see {@link #cancellableProperty()}).
+         * If the dialog declares a dedicated cancel button then this method behaves exactly like
+         * {@link #cancel()}. If the dialog only declares a single (non-cancel) button, e.g. an
+         * information dialog with an "OK" button, then that button gets pressed instead.
+         *
+         * @return true if the dialog was closed by this call
+         */
+        public boolean requestCancel() {
+            Optional<ButtonType> cancelButtonType = findCancelButtonType();
+
+            if (!cancelButtonType.isPresent()) {
+                return false;
+            }
+
+            ButtonType buttonType = cancelButtonType.get();
+            ButtonBar.ButtonData buttonData = buttonType.getButtonData();
+
+            if (buttonData != null && buttonData.isCancelButton()) {
+                cancel();
+            } else {
+                press(buttonType);
+            }
+
+            return true;
+        }
+
+        /*
+         * Returns the button type that will be used when the user cancels the dialog, e.g. via the
+         * escape key. This is either the first button type that is flagged as a cancel button or the
+         * only button type of the dialog.
+         */
+        private Optional<ButtonType> findCancelButtonType() {
+            Optional<ButtonType> result = buttonTypes.stream()
+                    .filter(buttonType -> buttonType.getButtonData() != null && buttonType.getButtonData().isCancelButton())
+                    .findFirst();
+
+            if (!result.isPresent() && buttonTypes.size() == 1) {
+                result = Optional.of(buttonTypes.get(0));
+            }
+
+            return result;
+        }
+
+        // cancellable
+
+        private final ReadOnlyBooleanWrapper cancellable = new ReadOnlyBooleanWrapper(this, "cancellable");
+
+        public final boolean isCancellable() {
+            return cancellable.get();
+        }
+
+        /**
+         * Determines whether the dialog can be cancelled by the user, e.g. by pressing the escape key
+         * or by using the close button in the dialog header. A dialog is considered cancellable if it
+         * either shows a button that is flagged as a cancel button (e.g. {@link ButtonType#CANCEL},
+         * {@link ButtonType#NO}, {@link ButtonType#CLOSE}) or if it only shows a single button.
+         *
+         * @return true if the dialog can be cancelled by the user
+         * @see #getButtonTypes()
+         * @see #requestCancel()
+         */
+        public final ReadOnlyBooleanProperty cancellableProperty() {
+            return cancellable.getReadOnlyProperty();
         }
 
         // on button pressed
 
         private Consumer<ButtonType> onButtonPressed;
 
+        /**
+         * Returns the consumer invoked when a standard dialog button is pressed.
+         *
+         * @return the button pressed consumer
+         */
         public Consumer<ButtonType> getOnButtonPressed() {
             return onButtonPressed;
         }
@@ -1478,6 +1668,11 @@ public class DialogPane extends Pane {
             return onClose.get();
         }
 
+        /**
+         * The consumer invoked when the dialog closes.
+         *
+         * @return the close handler property
+         */
         public final ObjectProperty<Consumer<ButtonType>> onCloseProperty() {
             return onClose;
         }
@@ -1487,15 +1682,25 @@ public class DialogPane extends Pane {
         }
 
         /**
-         * A method in fluent-api style that sets the given consumer and returns the dialog
-         * again.
+         * Sets a consumer that will be invoked when the dialog is being closed.
          *
-         * @param onCommit the handler
+         * @param onClose the "close dialog" handler
+         * @return this dialog
          */
-        public final Dialog<T> onClose(Consumer<ButtonType> onCommit) {
-            Objects.requireNonNull(onCommit, "onCommit handler can not be null");
-            setOnClose(onCommit);
+        public final Dialog<T> onClose(Consumer<ButtonType> onClose) {
+            Objects.requireNonNull(onClose, "onCommit handler can not be null");
+            setOnClose(onClose);
             return this;
+        }
+
+        /**
+         * Programmatic access to closing the dialog with the given button type.
+         *
+         * @param buttonType the type of button pressed
+         */
+        public void press(ButtonType buttonType) {
+            pane.hideDialog(this);
+            commit(buttonType);
         }
 
         private void commit(ButtonType buttonType) {
@@ -1533,6 +1738,11 @@ public class DialogPane extends Pane {
 
         private final ObservableList<ButtonType> buttonTypes = FXCollections.observableArrayList();
 
+        /**
+         * Returns the button types shown in the dialog footer.
+         *
+         * @return the button types
+         */
         public final ObservableList<ButtonType> getButtonTypes() {
             return buttonTypes;
         }
@@ -1629,8 +1839,13 @@ public class DialogPane extends Pane {
 
         // title
 
-        private final StringProperty title = new SimpleStringProperty(this, "title", "Dialog");
+        private final StringProperty title = new SimpleStringProperty(this, "title", ResourceBundleManager.getString(ResourceBundleManager.BundleType.DIALOG_PANE, "title.default", "Dialog"));
 
+        /**
+         * The title shown by the default dialog header.
+         *
+         * @return the title property
+         */
         public final StringProperty titleProperty() {
             return title;
         }
@@ -1772,7 +1987,16 @@ public class DialogPane extends Pane {
         private final ChangeListener<Node> focusListener = (o, oldOwner, newOwner) -> {
             if (newOwner != null && !isInsideDialogPane(newOwner.getParent()) && getScene() != null) {
                 if (oldOwner != null && isInsideDialogPane(oldOwner.getParent())) {
-                    oldOwner.requestFocus();
+                    if (getDialog().getType().equals(Type.INPUT)) {
+                        Node node = FocusUtil.findFirstFocusableNode(getDialog().getContent());
+                        if (node != null) {
+                            node.requestFocus();
+                        } else {
+                            oldOwner.requestFocus();
+                        }
+                    } else {
+                        oldOwner.requestFocus();
+                    }
                 } else {
                     requestFocus();
                 }
@@ -1780,6 +2004,10 @@ public class DialogPane extends Pane {
         };
 
         private final WeakChangeListener<Node> weakFocusListener = new WeakChangeListener<>(focusListener);
+
+        private final InvalidationListener updateStyleClassesListener = (Observable it) -> updateContentPaneStyleClasses();
+
+        private final WeakInvalidationListener weakUpdateStyleClassesListener = new WeakInvalidationListener(updateStyleClassesListener);
 
         public ContentPane(Dialog<?> dialog) {
             this.dialog = Objects.requireNonNull(dialog);
@@ -1826,16 +2054,19 @@ public class DialogPane extends Pane {
 
             boolean blankDialog = this.dialog.getType().equals(Type.BLANK);
 
-            header.setVisible(!blankDialog && dialog.isShowHeader());
-            header.setManaged(!blankDialog && dialog.isShowHeader());
+            header.visibleProperty().bind(Bindings.createBooleanBinding(() -> !blankDialog && dialog.isShowHeader()
+                    , dialog.showHeaderProperty()));
+            header.managedProperty().bind(header.visibleProperty());
 
             Node footer = getFooterFactory().call(dialog);
             VBox.setVgrow(footer, Priority.NEVER);
-            footer.setVisible(!blankDialog && dialog.isShowFooter());
-            footer.setManaged(!blankDialog && dialog.isShowFooter());
 
-            getStyleClass().setAll("content-pane");
-            getStyleClass().addAll(this.dialog.getStyleClass());
+            footer.visibleProperty().bind(Bindings.createBooleanBinding(() -> !blankDialog && dialog.isShowFooter()
+                    , dialog.showFooterProperty()));
+            footer.managedProperty().bind(footer.visibleProperty());
+
+            dialog.getStyleClass().addListener(weakUpdateStyleClassesListener);
+            updateContentPaneStyleClasses();
 
             VBox box = new VBox();
             box.getStyleClass().add("vbox");
@@ -1850,9 +2081,9 @@ public class DialogPane extends Pane {
             getChildren().addAll(box, glassPane);
         }
 
-        @Override
-        public Orientation getContentBias() {
-            return Orientation.VERTICAL;
+        private void updateContentPaneStyleClasses() {
+            getStyleClass().setAll("content-pane");
+            getStyleClass().addAll(this.dialog.getStyleClass());
         }
 
         private boolean isInsideDialogPane(Parent parent) {
@@ -1867,15 +2098,15 @@ public class DialogPane extends Pane {
 
         private final BooleanProperty blocked = new SimpleBooleanProperty(this, "blocked");
 
-        public boolean isBlocked() {
+        public final boolean isBlocked() {
             return blocked.get();
         }
 
-        public BooleanProperty blockedProperty() {
+        public final BooleanProperty blockedProperty() {
             return blocked;
         }
 
-        public void setBlocked(boolean blocked) {
+        public final void setBlocked(boolean blocked) {
             this.blocked.set(blocked);
         }
 
@@ -1889,7 +2120,13 @@ public class DialogPane extends Pane {
      *
      * @see DialogPane#setHeaderFactory(Callback)
      */
-    public static class DialogHeader extends StackPane {
+    public static class DialogHeader extends HBox {
+
+        /*
+         * A long title must not blow up the width of the entire dialog. Beyond this width the
+         * title gets ellipsised instead, unless the dialog is wider anyway because of its content.
+         */
+        private static final double MAX_TITLE_DRIVEN_WIDTH = 400;
 
         /**
          * Constructs a new header for the given dialog.
@@ -1897,22 +2134,25 @@ public class DialogPane extends Pane {
          * @param dialog the model object defining the dialog
          */
         public DialogHeader(Dialog<?> dialog) {
-            setAlignment(Pos.CENTER);
+            setAlignment(Pos.CENTER_LEFT);
+            setFillHeight(false);
             getStyleClass().add("header");
-
-            Label dialogTitle = new Label("Dialog");
-            dialogTitle.setMaxWidth(Double.MAX_VALUE);
-            dialogTitle.getStyleClass().add("title");
-            dialogTitle.textProperty().bind(dialog.titleProperty());
-            VBox.setVgrow(dialogTitle, Priority.NEVER);
 
             ImageView dialogIcon = new ImageView();
             dialogIcon.getStyleClass().addAll("icon");
-            dialogIcon.visibleProperty().bind(showIconProperty());
-            dialogIcon.managedProperty().bind(showIconProperty());
+            dialogIcon.setPreserveRatio(true);
+            dialogIcon.setSmooth(true);
 
-            VBox vBox = new VBox(dialogIcon, dialogTitle);
-            vBox.getStyleClass().add("title-and-icon-box");
+            // dialog types without an icon (e.g. "blank") must not add the header spacing
+            BooleanBinding iconVisible = showIconProperty().and(dialogIcon.imageProperty().isNotNull());
+            dialogIcon.visibleProperty().bind(iconVisible);
+            dialogIcon.managedProperty().bind(iconVisible);
+
+            Label dialogTitle = new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.DIALOG_PANE, "header.title.fallback", "Dialog"));
+            dialogTitle.setMaxWidth(Double.MAX_VALUE);
+            dialogTitle.getStyleClass().add("title");
+            dialogTitle.textProperty().bind(dialog.titleProperty());
+            HBox.setHgrow(dialogTitle, Priority.ALWAYS);
 
             // close icon / button support
             FontIcon fontIcon = new FontIcon(MaterialDesign.MDI_CLOSE);
@@ -1923,12 +2163,16 @@ public class DialogPane extends Pane {
             closeButton.setAlignment(Pos.CENTER);
             closeButton.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
             closeButton.getStyleClass().add("close-button");
-            closeButton.visibleProperty().bind(dialog.showCloseButtonProperty().and(showCloseButtonProperty()));
-            closeButton.managedProperty().bind(dialog.showCloseButtonProperty().and(showCloseButtonProperty()));
-            closeButton.setOnAction(evt -> dialog.cancel());
-            StackPane.setAlignment(closeButton, Pos.TOP_RIGHT);
+            closeButton.visibleProperty().bind(dialog.showCloseButtonProperty().and(showCloseButtonProperty()).and(dialog.cancellableProperty()));
+            closeButton.managedProperty().bind(dialog.showCloseButtonProperty().and(showCloseButtonProperty()).and(dialog.cancellableProperty()));
+            closeButton.setOnAction(evt -> dialog.requestCancel());
 
-            getChildren().setAll(vBox, closeButton);
+            getChildren().setAll(dialogIcon, dialogTitle, closeButton);
+        }
+
+        @Override
+        protected double computePrefWidth(double height) {
+            return Math.min(super.computePrefWidth(height), MAX_TITLE_DRIVEN_WIDTH);
         }
 
         private final BooleanProperty showCloseButton = new SimpleBooleanProperty(this, "showCloseButton", true);
@@ -1937,6 +2181,11 @@ public class DialogPane extends Pane {
             return showCloseButton.get();
         }
 
+        /**
+         * Controls whether this header shows its close button.
+         *
+         * @return the show close button property
+         */
         public final BooleanProperty showCloseButtonProperty() {
             return showCloseButton;
         }
@@ -1951,6 +2200,11 @@ public class DialogPane extends Pane {
             return showIcon.get();
         }
 
+        /**
+         * Controls whether the default header shows the dialog icon.
+         *
+         * @return the show icon property
+         */
         public final BooleanProperty showIconProperty() {
             return showIcon;
         }
@@ -1977,10 +2231,11 @@ public class DialogPane extends Pane {
         public DialogButtonBar(Dialog<?> dialog) {
             this.dialog = dialog;
 
-            // Setting the skin eagerly to make sure the focus does not
-            // switch to one of the buttons in the button bar when it
-            // should stay with a node shown by the dialog.
-            setSkin(new ButtonBarSkin(this));
+            if (dialog.getType().equals(Type.INPUT)) {
+                // initializing skin early or the skin will grab the focus later on for one of its buttons instead of
+                // leaving it with the control used for the input
+                setSkin(new RightAlignedButtonBarSkin(this));
+            }
 
             getStyleClass().add("footer");
 
@@ -1995,6 +2250,11 @@ public class DialogPane extends Pane {
             if (!dialog.getType().equals(Type.BLANK)) {
                 createButtons();
             }
+        }
+
+        @Override
+        protected Skin<?> createDefaultSkin() {
+            return new RightAlignedButtonBarSkin(this);
         }
 
         /**
@@ -2083,25 +2343,30 @@ public class DialogPane extends Pane {
          * Determines whether validation should be run for the given button data / button type.
          *
          * @param data the button data / button type to check
+         * @return true if validation should be triggered
          */
         protected boolean isTriggeringValidation(ButtonData data) {
-            return switch (data) {
-                case LEFT -> true;
-                case RIGHT -> true;
-                case HELP -> false;
-                case HELP_2 -> false;
-                case YES -> true;
-                case NO -> false;
-                case NEXT_FORWARD -> true;
-                case BACK_PREVIOUS -> true;
-                case FINISH -> true;
-                case APPLY -> true;
-                case CANCEL_CLOSE -> false;
-                case OK_DONE -> true;
-                case OTHER -> true;
-                case BIG_GAP -> true;
-                case SMALL_GAP -> true;
-            };
+            switch (data) {
+                case LEFT:
+                case RIGHT:
+                case YES:
+                case NEXT_FORWARD:
+                case BACK_PREVIOUS:
+                case FINISH:
+                case APPLY:
+                case OK_DONE:
+                case OTHER:
+                case BIG_GAP:
+                case SMALL_GAP:
+                    return true;
+                case HELP:
+                case HELP_2:
+                case NO:
+                case CANCEL_CLOSE:
+                    return false;
+                default:
+                    throw new IllegalStateException("Unexpected button data: " + data);
+            }
         }
 
         /**
@@ -2126,6 +2391,24 @@ public class DialogPane extends Pane {
             button.setDefaultButton(buttonData.isDefaultButton());
             button.setCancelButton(buttonData.isCancelButton());
             return button;
+        }
+    }
+
+    /*
+     * The default button bar skin centers its buttons because it aligns its internal container
+     * programmatically, which a user agent stylesheet can not override. This skin right-aligns the
+     * buttons instead. Applications can still override the alignment via their own stylesheet
+     * (".button-bar > .container").
+     */
+    private static class RightAlignedButtonBarSkin extends ButtonBarSkin {
+
+        public RightAlignedButtonBarSkin(ButtonBar buttonBar) {
+            super(buttonBar);
+
+            getChildren().stream()
+                    .filter(HBox.class::isInstance)
+                    .map(HBox.class::cast)
+                    .forEach(container -> container.setAlignment(Pos.CENTER_RIGHT));
         }
     }
 
@@ -2184,7 +2467,7 @@ public class DialogPane extends Pane {
 
                 @Override
                 public Object getBean() {
-                    return this;
+                    return CircularProgressIndicator.this;
                 }
 
                 @Override
@@ -2195,7 +2478,7 @@ public class DialogPane extends Pane {
             indeterminate = new BooleanPropertyBase(false) {
                 @Override
                 public Object getBean() {
-                    return this;
+                    return CircularProgressIndicator.this;
                 }
 
                 @Override
@@ -2217,7 +2500,7 @@ public class DialogPane extends Pane {
 
                 @Override
                 public Object getBean() {
-                    return this;
+                    return CircularProgressIndicator.this;
                 }
 
                 @Override
@@ -2341,15 +2624,15 @@ public class DialogPane extends Pane {
 
 
         // ******************** Methods *******************************************
-        public double getProgress() {
+        public final double getProgress() {
             return progress.get();
         }
 
-        public void setProgress(double PROGRESS) {
+        public final void setProgress(double PROGRESS) {
             progress.set(PROGRESS);
         }
 
-        public DoubleProperty progressProperty() {
+        public final DoubleProperty progressProperty() {
             return progress;
         }
 
@@ -2383,23 +2666,23 @@ public class DialogPane extends Pane {
             indeterminate.set(false);
         }
 
-        public boolean isIndeterminate() {
+        public final boolean isIndeterminate() {
             return Double.compare(ProgressIndicator.INDETERMINATE_PROGRESS, getProgress()) == 0;
         }
 
-        public ReadOnlyBooleanProperty indeterminateProperty() {
+        public final ReadOnlyBooleanProperty indeterminateProperty() {
             return indeterminate;
         }
 
-        public boolean isRoundLineCap() {
+        public final boolean isRoundLineCap() {
             return roundLineCap.get();
         }
 
-        public void setRoundLineCap(boolean BOOLEAN) {
+        public final void setRoundLineCap(boolean BOOLEAN) {
             roundLineCap.set(BOOLEAN);
         }
 
-        public BooleanProperty roundLineCapProperty() {
+        public final BooleanProperty roundLineCapProperty() {
             return roundLineCap;
         }
 
@@ -2460,6 +2743,11 @@ public class DialogPane extends Pane {
 
         private final Dialog<?> dialog;
 
+        /**
+         * Creates a new resize handler for the given dialog.
+         *
+         * @param dialog the dialog whose size should be stored
+         */
         public DefaultResizeHandler(Dialog<?> dialog) {
             this.dialog = Objects.requireNonNull(dialog, "dialog can not be null");
         }

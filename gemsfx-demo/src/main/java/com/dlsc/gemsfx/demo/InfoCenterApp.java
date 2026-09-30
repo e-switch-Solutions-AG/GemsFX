@@ -1,18 +1,23 @@
 package com.dlsc.gemsfx.demo;
 
+import atlantafx.base.theme.NordDark;
+import atlantafx.base.theme.NordLight;
 import com.dlsc.gemsfx.infocenter.InfoCenterPane;
+import com.dlsc.gemsfx.infocenter.InfoCenterViewPos;
 import com.dlsc.gemsfx.infocenter.InfoCenterView;
 import com.dlsc.gemsfx.infocenter.Notification;
 import com.dlsc.gemsfx.infocenter.Notification.OnClickBehaviour;
 import com.dlsc.gemsfx.infocenter.NotificationAction;
 import com.dlsc.gemsfx.infocenter.NotificationGroup;
 import com.dlsc.gemsfx.infocenter.NotificationView;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.application.Application;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
@@ -26,14 +31,16 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import org.scenicview.ScenicView;
+import org.kordamp.ikonli.javafx.FontIcon;
+import org.kordamp.ikonli.material.Material;
+import org.kordamp.ikonli.materialdesign.MaterialDesign;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 
-public class InfoCenterApp extends Application {
+public class InfoCenterApp extends GemApplication {
 
     private static final Image SLACK_IMAGE = loadResourceImage("notification/slack.png");
     private static final Image CALENDAR_IMAGE = loadResourceImage("notification/calendar.png");
@@ -47,6 +54,7 @@ public class InfoCenterApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        super.start(stage);
         slackGroup.setSortOrder(0);
         calendarGroup.setSortOrder(1);
         mailGroup.setSortOrder(2);
@@ -55,15 +63,28 @@ public class InfoCenterApp extends Application {
         calendarGroup.maximumNumberOfNotificationsProperty().bind(Bindings.createIntegerBinding(() -> calendarGroup.isPinned() ? 3 : 10, calendarGroup.pinnedProperty()));
         mailGroup.maximumNumberOfNotificationsProperty().bind(Bindings.createIntegerBinding(() -> mailGroup.isPinned() ? 3 : 10, mailGroup.pinnedProperty()));
 
-        slackGroup.setViewFactory(n -> {
-            NotificationView<Object, SlackNotification> view = new NotificationView<>(n);
-            view.setGraphic(createImageView(SLACK_IMAGE));
-            return view;
-        });
+        boolean atlantafx = Boolean.getBoolean("atlantafx");
+//        slackGroup.setViewFactory(n -> {
+//            NotificationView<Object, SlackNotification> view = new NotificationView<>(n);
+//            if (atlantafx) {
+//                FontIcon graphic = new FontIcon(MaterialDesign.MDI_SLACK);
+//                graphic.getStyleClass().addAll("custom-icon", "warning");
+//                view.setGraphic(graphic);
+//            } else {
+//                view.setGraphic(createImageView(SLACK_IMAGE));
+//            }
+//            return view;
+//        });
 
         calendarGroup.setViewFactory(n -> {
             NotificationView<Object, CalendarNotification> view = new NotificationView<>(n);
-            view.setGraphic(createImageView(CALENDAR_IMAGE));
+            if (atlantafx) {
+                FontIcon graphic = new FontIcon(Material.CALENDAR_TODAY);
+                graphic.getStyleClass().addAll("custom-icon", "danger");
+                view.setGraphic(graphic);
+            } else {
+                view.setGraphic(createImageView(CALENDAR_IMAGE));
+            }
             Region region = new Region();
             region.setMinHeight(200);
             region.setBackground(new Background(new BackgroundImage(MAP_IMAGE, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.CENTER, new BackgroundSize(100, 100, true, true, false, true))));
@@ -75,7 +96,13 @@ public class InfoCenterApp extends Application {
 
         mailGroup.setViewFactory(n -> {
             NotificationView<Mail, MailNotification> view = new NotificationView<>(n);
-            view.setGraphic(createImageView(MAIL_IMAGE));
+            if (atlantafx) {
+                FontIcon graphic = new FontIcon(MaterialDesign.MDI_EMAIL);
+                graphic.getStyleClass().addAll("custom-icon");
+                view.setGraphic(graphic);
+            } else {
+                view.setGraphic(createImageView(MAIL_IMAGE));
+            }
             return view;
         });
 
@@ -122,24 +149,57 @@ public class InfoCenterApp extends Application {
         transparentButton.setMaxWidth(Double.MAX_VALUE);
         transparentButton.selectedProperty().bindBidirectional(infoCenterView.transparentProperty());
 
-        Button scenicView = new Button("Scenic View");
-        scenicView.setOnAction(evt -> ScenicView.show(infoCenterView.getScene()));
+        ComboBox<InfoCenterViewPos> infoCenterViewPosition = new ComboBox<>();
+        infoCenterViewPosition.getItems().addAll(InfoCenterViewPos.values());
+        infoCenterViewPosition.setConverter(new EnumStringConverter<>());
+        infoCenterViewPosition.setValue(infoCenterPane.getInfoCenterViewPos());
+        infoCenterViewPosition.setMaxWidth(Double.MAX_VALUE);
+        infoCenterViewPosition.valueProperty().bindBidirectional(infoCenterPane.infoCenterViewPosProperty());
+
+        Button scenicView = new Button("Dev Tools");
+        hideInBrowser(scenicView);
+        configureDevToolsButton(scenicView);
         scenicView.setMaxWidth(Double.MAX_VALUE);
 
+        // switching the theme would also change the theme of the showcase application, hence
+        // the toggle is only shown when the demo runs on its own
+        boolean showDarkMode = atlantafx && !isRunningInShowcase();
+
+        ToggleButton darkMode = new ToggleButton("Dark Mode");
+        darkMode.selectedProperty().addListener(it -> {
+            if (darkMode.isSelected()) {
+                Application.setUserAgentStylesheet(new NordDark().getUserAgentStylesheet());
+            } else {
+                Application.setUserAgentStylesheet(new NordLight().getUserAgentStylesheet());
+            }
+        });
+        darkMode.setMaxWidth(Double.MAX_VALUE);
+        darkMode.setVisible(showDarkMode);
+        darkMode.setManaged(showDarkMode);
+
         Label counterLabel = new Label();
-        counterLabel.setStyle("-fx-text-fill: white;");
+        if (atlantafx) {
+            counterLabel.setStyle("-fx-text-fill: -color-fg-default;");
+        } else {
+            counterLabel.setStyle("-fx-text-fill: white;");
+        }
         counterLabel.textProperty().bind(Bindings.createStringBinding(() -> "Count: " + infoCenterView.getUnmodifiableNotifications().size(), infoCenterView.getUnmodifiableNotifications()));
 
-        VBox buttonBox = new VBox(10, showNotifications, hideNotifications, pinNotifications, autoOpenGroups, randomNotification, manyNotifications, clearAll, transparentButton, scenicView, counterLabel);
+        VBox buttonBox = new VBox(10, showNotifications, hideNotifications, pinNotifications, autoOpenGroups, randomNotification, manyNotifications, clearAll, transparentButton, darkMode, infoCenterViewPosition, scenicView, counterLabel);
         buttonBox.getStyleClass().add("button-box");
         buttonBox.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
-        buttonBox.setTranslateX(50);
         buttonBox.setTranslateY(50);
 
-        StackPane.setAlignment(buttonBox, Pos.TOP_LEFT);
+        infoCenterPane.infoCenterViewPosProperty().addListener((obs, oldPos, newPos) -> updateButtonBoxAlignment(buttonBox, newPos));
+        updateButtonBoxAlignment(buttonBox, infoCenterPane.getInfoCenterViewPos());
 
         StackPane background = new StackPane(buttonBox);
-        background.getStyleClass().add("background");
+        if (atlantafx) {
+            background.setStyle("-fx-background-color: -color-neutral-muted;");
+        } else {
+            background.getStyleClass().add("background");
+        }
+
         infoCenterPane.setContent(background);
         infoCenterPane.getStylesheets().add(Objects.requireNonNull(InfoCenterApp.class.getResource("notification/scene.css")).toExternalForm());
 
@@ -152,13 +212,43 @@ public class InfoCenterApp extends Application {
          */
         StackPane root = new StackPane(infoCenterPane);
         Scene scene = new Scene(root);
+        if (atlantafx) {
+            scene.getStylesheets().add(Objects.requireNonNull(InfoCenterApp.class.getResource("infocenterdemo.css")).toExternalForm());
+        }
 
         stage.setScene(scene);
         stage.setWidth(1000);
         stage.setHeight(800);
-        stage.centerOnScreen();
         stage.setTitle("InfoCenter");
+
         stage.show();
+
+        infoCenterPane.setPinned(true);
+    }
+
+    private void updateButtonBoxAlignment(VBox buttonBox, InfoCenterViewPos pos) {
+        boolean left = pos.isLeft();
+        Pos alignment;
+        double translateY;
+        switch (pos) {
+            case BOTTOM_LEFT:
+            case BOTTOM_RIGHT:
+                alignment = left ? Pos.BOTTOM_RIGHT : Pos.BOTTOM_LEFT;
+                translateY = -50;
+                break;
+            case CENTER_LEFT:
+            case CENTER_RIGHT:
+                alignment = left ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT;
+                translateY = 0;
+                break;
+            default:
+                alignment = left ? Pos.TOP_RIGHT : Pos.TOP_LEFT;
+                translateY = 50;
+                break;
+        }
+        StackPane.setAlignment(buttonBox, alignment);
+        buttonBox.setTranslateX(left ? -50 : 50);
+        buttonBox.setTranslateY(translateY);
     }
 
     private void assignNotification(Notification<?> notification) {
@@ -180,18 +270,11 @@ public class InfoCenterApp extends Application {
     }
 
     private Notification<?> createNotification(boolean randomizeTimeStamp) {
-        Notification notification;
-        switch ((int) (Math.random() * 3)) {
-            case 0:
-                notification = createMailNotification();
-                break;
-            case 1:
-                notification = new SlackNotification("DLSC GmbH\nDirk Lemmermann", "Please send the material I requested.");
-                break;
-            case 2:
-            default:
-                notification = new CalendarNotification("Calendar", "Meeting with shareholders");
-        }
+        Notification notification = switch ((int) (Math.random() * 3)) {
+            case 0 -> createMailNotification();
+            case 1 -> new SlackNotification("DLSC GmbH\nDirk Lemmermann", "Please send the material I requested.");
+            default -> new CalendarNotification("Calendar", "Meeting with shareholders");
+        };
 
         if (randomizeTimeStamp) {
             notification.setDateTime(createTimeStamp());
@@ -201,7 +284,7 @@ public class InfoCenterApp extends Application {
     }
 
     private MailNotification createMailNotification() {
-        Mail mail = new Mail("Purchase Order #8774911", "Dear Mr. Smith, the following order has been received by our service counter.", ZonedDateTime.now());
+        Mail mail = new Mail("Purchase Order #8774911", "Dear Mr. Smith, the following order has been received by our service counter. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua.", ZonedDateTime.now());
         MailNotification mailNotification = new MailNotification(mail);
 
         NotificationAction<Mail> openMailAction = new NotificationAction<>("Open", (notification) -> {
@@ -218,8 +301,10 @@ public class InfoCenterApp extends Application {
             return OnClickBehaviour.HIDE_AND_REMOVE;
         });
 
-        mailNotification.getActions().add(openMailAction);
-        mailNotification.getActions().add(deleteMailAction);
+        mailNotification.getActions().addAll(openMailAction, deleteMailAction);
+
+        int random = (int) (Math.random() * 4);
+        mailNotification.setType(Notification.Type.values()[random]);
 
         return mailNotification;
     }

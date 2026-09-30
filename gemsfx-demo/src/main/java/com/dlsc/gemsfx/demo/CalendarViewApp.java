@@ -4,8 +4,7 @@ import com.dlsc.gemsfx.CalendarView;
 import com.dlsc.gemsfx.CalendarView.SelectionModel.SelectionMode;
 import com.dlsc.gemsfx.CalendarView.YearDisplayMode;
 import com.dlsc.gemsfx.CalendarView.MonthDisplayMode;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -25,14 +24,15 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import org.scenicview.ScenicView;
 
 import java.time.LocalDate;
 
-public class CalendarViewApp extends Application {
+public class CalendarViewApp extends GemApplication {
 
     @Override
     public void start(Stage stage) {
+        super.start(stage);
+
         CalendarView calendarView = new CalendarView();
         calendarView.setShowTodayButton(true);
         calendarView.getSelectionModel().setSelectedDate(LocalDate.now().minusWeeks(1));
@@ -92,7 +92,9 @@ public class CalendarViewApp extends Application {
         options2.getChildren().add(createOption("Enable month selection view", calendarView.monthSelectionViewEnabledProperty()));
         options2.getChildren().add(new Separator(Orientation.HORIZONTAL));
         options2.getChildren().add(disabledWeekendBox);
-        Button scenicViewButton = new Button("Scenic View");
+
+        Button scenicViewButton = new Button("Dev Tools");
+        hideInBrowser(scenicViewButton);
 
         VBox calendarWrapper = new VBox(50, calendarView, scenicViewButton);
 
@@ -101,16 +103,18 @@ public class CalendarViewApp extends Application {
         box.setAlignment(Pos.CENTER);
 
         StackPane stackPane = new StackPane(box);
+        if (Boolean.getBoolean("atlantafx")) {
+            stackPane.setStyle("-fx-background-color: -color-bg-default;");
+        }
 
         Scene scene = new Scene(stackPane);
-        CSSFX.start(scene);
 
-        scenicViewButton.setOnAction(evt -> ScenicView.show(scene));
+        configureDevToolsButton(scenicViewButton);
 
         stage.setTitle("CalendarView");
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.centerOnScreen();
+
         stage.show();
     }
 
@@ -124,6 +128,7 @@ public class CalendarViewApp extends Application {
 
     private <E extends Enum<E>> VBox createComboBoxOption(String title, E defaultEnum, ObjectProperty<E> property) {
         ComboBox<E> comboBox = new ComboBox<>();
+        comboBox.setConverter(new EnumStringConverter<>());
         comboBox.setMaxWidth(Double.MAX_VALUE);
         comboBox.getItems().addAll(defaultEnum.getDeclaringClass().getEnumConstants());
         comboBox.setValue(defaultEnum);

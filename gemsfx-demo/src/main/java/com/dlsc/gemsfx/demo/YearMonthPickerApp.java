@@ -2,8 +2,7 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.CustomComboBox;
 import com.dlsc.gemsfx.YearMonthPicker;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -16,10 +15,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class YearMonthPickerApp extends Application {
+public class YearMonthPickerApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         YearMonthPicker yearMonthPicker = new YearMonthPicker();
 
         Label valueLabel = new Label();
@@ -41,6 +40,7 @@ public class YearMonthPickerApp extends Application {
 
         ComboBox<CustomComboBox.ButtonDisplay> buttonDisplayComboBox = new ComboBox<>();
         buttonDisplayComboBox.getItems().addAll(CustomComboBox.ButtonDisplay.values());
+        buttonDisplayComboBox.setConverter(new EnumStringConverter<>());
         buttonDisplayComboBox.valueProperty().bindBidirectional(yearMonthPicker.buttonDisplayProperty());
         Label buttonDisplayLabel = new Label("Button Display");
         HBox buttonDisplayBox = new HBox(10, buttonDisplayLabel, buttonDisplayComboBox);
@@ -52,12 +52,11 @@ public class YearMonthPickerApp extends Application {
         vBox.setAlignment(Pos.TOP_LEFT);
 
         Scene scene = new Scene(vBox);
-        CSSFX.start();
 
         stage.setTitle("YearMonthPicker");
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.centerOnScreen();
+
         stage.show();
     }
 

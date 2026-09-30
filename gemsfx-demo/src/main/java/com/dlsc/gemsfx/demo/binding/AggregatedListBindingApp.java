@@ -2,7 +2,7 @@ package com.dlsc.gemsfx.demo.binding;
 
 import com.dlsc.gemsfx.binding.AggregatedListBinding;
 import com.dlsc.gemsfx.binding.GeneralAggregatedListBinding;
-import javafx.application.Application;
+import com.dlsc.gemsfx.demo.GemApplication;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  * has a list of scores. We create bindings that calculate the total and average score of all students, as well as the
  * number of students who have at least one failing score.
  */
-public class AggregatedListBindingApp extends Application {
+public class AggregatedListBindingApp extends GemApplication {
 
     private final ObservableList<Student> students = FXCollections.observableArrayList();
     private final TableView<Student> tableView = new TableView<>();
@@ -37,6 +37,8 @@ public class AggregatedListBindingApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         students.add(new Student("Alice", FXCollections.observableArrayList(80, 90, 88)));
         students.add(new Student("Bob", FXCollections.observableArrayList(75, 82, 91)));
         initTableView();
@@ -109,15 +111,24 @@ public class AggregatedListBindingApp extends Application {
         primaryStage.setTitle("Student Scores Management");
         primaryStage.setScene(scene);
         primaryStage.sizeToScene();
+
         primaryStage.show();
     }
 
     private Node createStatisticBox(String title, Node... children) {
         Label titleLabel = new Label(title);
-        titleLabel.setStyle(" -fx-font-size: 15px;-fx-text-fill: #9a9999");
+        if (Boolean.getBoolean("atlantafx")) {
+            titleLabel.setStyle(" -fx-font-size: 15px;-fx-text-fill: -color-fg-default;");
+        } else {
+            titleLabel.setStyle(" -fx-font-size: 15px;-fx-text-fill: #9a9999");
+        }
         HBox box = new HBox(10, children);
         VBox wrapper = new VBox(15, titleLabel, box);
-        wrapper.setStyle("-fx-border-color: lightgray; -fx-border-width: 1px; -fx-padding: 10px; -fx-border-radius: 5px;-fx-background-color: white;");
+        if (Boolean.getBoolean("atlantafx")) {
+            wrapper.setStyle("-fx-border-color: -color-border-default; -fx-border-width: 1px; -fx-padding: 10px; -fx-border-radius: 5px;-fx-background-color: -color-bg-inset;");
+        } else {
+            wrapper.setStyle("-fx-border-color: lightgray; -fx-border-width: 1px; -fx-padding: 10px; -fx-border-radius: 5px;-fx-background-color: white;");
+        }
         return wrapper;
     }
 

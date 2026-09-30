@@ -4,3 +4,18 @@ target/
 out/
 trace.log
 /scenicView.properties
+/gemsfx-demo/logs/*
+scenicView.properties
+
+# Generated Javadoc API (published to GitHub Pages by CI, not committed)
+/docs/api/
+/gemsfx-demo/RUNNING_PID
+
+# Manual generator (Python virtual env and raster cache)
+/docs/manuals/src/.venv/
+/docs/manuals/src/.raster-cache/
+**/__pycache__/
+.DS_Store
+
+# Superpowers brainstorming session artifacts
+/.superpowers/

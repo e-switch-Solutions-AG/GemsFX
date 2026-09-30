@@ -1,7 +1,6 @@
 package com.dlsc.gemsfx.util;
 
 import javafx.util.StringConverter;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -44,6 +43,13 @@ public class PreferencesHistoryManager<T> extends HistoryManager<T> {
 
     private final StringConverter<T> converter;
 
+    /**
+     * Creates a new preferences-based history manager.
+     *
+     * @param preferences the preferences used for persistence
+     * @param key the key used to store the history
+     * @param converter the converter used to serialize and deserialize items
+     */
     public PreferencesHistoryManager(Preferences preferences, String key, StringConverter<T> converter) {
         this.preferences = Objects.requireNonNull(preferences);
         this.key = Objects.requireNonNull(key);
@@ -73,7 +79,7 @@ public class PreferencesHistoryManager<T> extends HistoryManager<T> {
             String[] ary = items.split(DELIMITER);
             set(Arrays.stream(ary)
                     .map(converter::fromString)
-                    .toList());
+                    .collect(Collectors.toList()));
         }
         LOG.finest(String.format("Loaded history items with key: '%s'.", key));
     }

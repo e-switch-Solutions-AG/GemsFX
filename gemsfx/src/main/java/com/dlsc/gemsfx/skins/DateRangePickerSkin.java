@@ -4,6 +4,8 @@ import com.dlsc.gemsfx.daterange.DateRange;
 import com.dlsc.gemsfx.daterange.DateRangePicker;
 import com.dlsc.gemsfx.daterange.DateRangeView;
 import javafx.beans.InvalidationListener;
+import javafx.event.EventHandler;
+import javafx.beans.binding.BooleanBinding;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -14,10 +16,16 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import org.apache.commons.lang3.StringUtils;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Skin for the {@link DateRangePicker} control.
+ * <p>
+ * The skin renders the selected date range, optional title and icon, and uses
+ * the associated {@link DateRangeView} as popup content.
+ */
 public class DateRangePickerSkin extends ToggleVisibilityComboBoxSkin<DateRangePicker> {
 
     private final DateRangePicker picker;
@@ -26,11 +34,25 @@ public class DateRangePickerSkin extends ToggleVisibilityComboBoxSkin<DateRangeP
     private Label rangeLabel;
     private HBox hBox;
 
+    private final InvalidationListener updateLabelsListener = it -> updateLabels();
+    private InvalidationListener setValueListener;
+    private final InvalidationListener smallListener = it -> updateView();
+
+    private final EventHandler<MouseEvent> mouseEnteredHandler = this::mouseEntered;
+    private final EventHandler<MouseEvent> mouseExitedHandler = this::mouseExited;
+    private final EventHandler<MouseEvent> mouseReleasedHandler = this::mouseReleased;
+
+    /**
+     * Creates a skin for the given date range picker.
+     *
+     * @param picker the date range picker rendered by this skin
+     */
     public DateRangePickerSkin(DateRangePicker picker) {
         super(picker);
         this.picker = picker;
 
         view = picker.getDateRangeView();
+        setValueListener = it -> view.setValue(picker.getValue());
         view.setFocusTraversable(false); // keep the picker focused / blue border
         view.valueProperty().bindBidirectional(getSkinnable().valueProperty());
         view.setOnClose(this::hide);
@@ -39,16 +61,17 @@ public class DateRangePickerSkin extends ToggleVisibilityComboBoxSkin<DateRangeP
             picker.requestFocus();
             picker.show();
         });
-        picker.addEventHandler(MouseEvent.MOUSE_ENTERED, this::mouseEntered);
-        picker.addEventHandler(MouseEvent.MOUSE_EXITED, this::mouseExited);
-        picker.addEventHandler(MouseEvent.MOUSE_RELEASED, this::mouseReleased);
+        registerHandler(picker, MouseEvent.MOUSE_ENTERED, mouseEnteredHandler);
+        registerHandler(picker, MouseEvent.MOUSE_EXITED, mouseExitedHandler);
+        registerHandler(picker, MouseEvent.MOUSE_RELEASED, mouseReleasedHandler);
 
-        InvalidationListener updateLabelsListener = it -> updateLabels();
-        picker.valueProperty().addListener(updateLabelsListener);
-        picker.formatterProperty().addListener(updateLabelsListener);
+        register(picker.valueProperty(), updateLabelsListener);
+        register(picker.formatterProperty(), updateLabelsListener);
+        register(picker.promptTextProperty(), updateLabelsListener);
 
-        picker.valueProperty().addListener(it -> view.setValue(picker.getValue()));
-        picker.smallProperty().addListener(it -> updateView());
+        register(picker.valueProperty(), setValueListener);
+
+        register(picker.smallProperty(), smallListener);
 
         updateView();
         updateLabels();
@@ -73,8 +96,10 @@ public class DateRangePickerSkin extends ToggleVisibilityComboBoxSkin<DateRangeP
         titleLabel = new Label();
         titleLabel.getStyleClass().add("title-label");
 
-        titleLabel.visibleProperty().bind(picker.showPresetTitleProperty());
-        titleLabel.managedProperty().bind(picker.showPresetTitleProperty());
+        BooleanBinding showPresetTitleBinding = picker.showPresetTitleProperty().and(picker.promptTextProperty().isEmpty());
+
+        titleLabel.visibleProperty().bind(showPresetTitleBinding);
+        titleLabel.managedProperty().bind(titleLabel.visibleProperty());
 
         rangeLabel = new Label();
         rangeLabel.getStyleClass().add("range-label");
@@ -97,8 +122,8 @@ public class DateRangePickerSkin extends ToggleVisibilityComboBoxSkin<DateRangeP
         } else {
             Region divider = new Region();
             divider.getStyleClass().add("divider");
-            divider.visibleProperty().bind(picker.showPresetTitleProperty());
-            divider.managedProperty().bind(picker.showPresetTitleProperty());
+            divider.visibleProperty().bind(showPresetTitleBinding);
+            divider.managedProperty().bind(divider.visibleProperty());
             pane = new HBox(titleLabel, divider, rangeLabel);
             pane.getStyleClass().add("small");
         }
@@ -124,20 +149,33 @@ public class DateRangePickerSkin extends ToggleVisibilityComboBoxSkin<DateRangeP
     }
 
     private void updateLabels() {
-        DateRange dateRange = getSkinnable().getValue();
-        if (dateRange != null) {
-            if (StringUtils.isNotBlank(dateRange.getTitle())) {
-                titleLabel.setText(dateRange.getTitle());
-            } else {
-                titleLabel.setText(getSkinnable().getCustomRangeText());
-            }
-            rangeLabel.setText(toString(dateRange));
+        DateRangePicker rangePicker = getSkinnable();
+        String promptText = rangePicker.getPromptText();
+        if (StringUtils.isNotBlank(promptText)) {
+            titleLabel.setText(null);
+            rangeLabel.setText(promptText);
         } else {
-            titleLabel.setText("");
-            rangeLabel.setText("");
+            DateRange dateRange = rangePicker.getValue();
+            if (dateRange != null) {
+                if (StringUtils.isNotBlank(dateRange.getTitle())) {
+                    titleLabel.setText(dateRange.getTitle());
+                } else {
+                    titleLabel.setText(rangePicker.getCustomRangeText());
+                }
+                rangeLabel.setText(toString(dateRange));
+            } else {
+                titleLabel.setText("");
+                rangeLabel.setText("");
+            }
         }
     }
 
+    /**
+     * Formats the given date range with the picker formatter.
+     *
+     * @param range the date range to format
+     * @return the formatted date range
+     */
     public String toString(DateRange range) {
         DateTimeFormatter formatter = getSkinnable().getFormatter();
 

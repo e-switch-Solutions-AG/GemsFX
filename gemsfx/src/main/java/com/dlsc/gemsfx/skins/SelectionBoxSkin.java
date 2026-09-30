@@ -1,8 +1,10 @@
 package com.dlsc.gemsfx.skins;
 
-import com.dlsc.gemsfx.CustomPopupControl;
 import com.dlsc.gemsfx.SelectionBox;
-import com.dlsc.gemsfx.util.UIUtil;
+import javafx.animation.FadeTransition;
+import javafx.animation.Transition;
+import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -10,25 +12,29 @@ import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
+import javafx.event.EventHandler;
+import javafx.scene.control.MultipleSelectionModel;
+import javafx.geometry.Bounds;
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.MultipleSelectionModel;
+import javafx.scene.control.PopupControl;
 import javafx.scene.control.RadioButton;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
-import javafx.scene.control.Separator;
 import javafx.scene.control.Skin;
-import javafx.scene.control.SkinBase;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.util.Callback;
+import javafx.util.Duration;
 import javafx.util.StringConverter;
 
 import java.util.ArrayList;
@@ -38,7 +44,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
+/**
+ * Skin for {@link SelectionBox}.
+ * <p>
+ * The skin renders the selected item text and arrow button, and manages a popup
+ * containing check boxes or radio buttons depending on the selection mode.
+ *
+ * @param <T> the item type
+ */
+public class SelectionBoxSkin<T> extends GemsSkinBase<SelectionBox<T>> {
 
     private static final PseudoClass READ_ONLY_PSEUDO_CLASS = PseudoClass.getPseudoClass("readonly");
     private static final PseudoClass EMPTY_SELECTION_PSEUDO_CLASS = PseudoClass.getPseudoClass("empty");
@@ -48,7 +62,7 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
 
     private static final String UPDATE_POPUP_CONTENT = "updatePopupContent";
     private static final String UPDATE_SELECTION_IN_POPUP = "updateSelectionInPopup";
-    private static final String UPDATE_EXTRA_BUTTONS_POSITION = "updateExtraButtonsPosition";
+    private static final String SHOW_POPUP_PROPERTY = "showPopup";
 
     private final SelectionBox<T> control;
 
@@ -63,13 +77,65 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
     private final ChangeListener<T> selectItemChangedListener = (obs, ov, nv) -> handleSelectionChange();
     private final ListChangeListener<T> selectItemsChangeListener = change -> handleSelectionChange();
     private final ChangeListener<SelectionMode> selectionModeChangeListener = (obs, oldMode, newMode) -> updatePseudoAndPopupContent();
+    private final ChangeListener<ObservableList<T>> itemsChangeListener = (obs, oldItems, newItems) -> updatePseudoAndPopupContent();
+    private final InvalidationListener itemConverterChangeListener = it -> updateDisplayLabelText();
+    private final ChangeListener<MultipleSelectionModel<T>> selectionModelChangeListener;
+    private final EventHandler<MouseEvent> mouseClickedHandler;
+    private final MapChangeListener<Object, Object> propertiesChangeListener;
 
+    /**
+     * Creates a new skin for the given selection box.
+     *
+     * @param control the selection box to skin
+     */
     public SelectionBoxSkin(SelectionBox<T> control) {
         super(control);
         this.control = control;
 
         popup = new SelectionPopup(control);
-        popup.showingProperty().subscribe(isShowing -> control.pseudoClassStateChanged(SHOWING_POPUP_PSEUDO_CLASS, isShowing));
+
+        selectionModelChangeListener = (obs, oldModel, newModel) -> {
+            if (oldModel != null) {
+                oldModel.selectedItemProperty().removeListener(selectItemChangedListener);
+                oldModel.getSelectedItems().removeListener(selectItemsChangeListener);
+                oldModel.selectionModeProperty().removeListener(selectionModeChangeListener);
+            }
+            if (newModel != null) {
+                newModel.selectedItemProperty().addListener(selectItemChangedListener);
+                newModel.getSelectedItems().addListener(selectItemsChangeListener);
+                newModel.selectionModeProperty().addListener(selectionModeChangeListener);
+            }
+            popup.initializePopupContent();
+        };
+        mouseClickedHandler = event -> {
+            if (!control.isDisabled() && !control.isReadOnly()) {
+                control.requestFocus();
+                if (popup.isShowing()) {
+                    popup.hide();
+                } else {
+                    popup.show(control);
+                }
+            }
+        };
+        propertiesChangeListener = change -> {
+            if (change.wasAdded()) {
+                if (change.getKey().equals(SHOW_POPUP_PROPERTY)) {
+                    if (Boolean.TRUE.equals(change.getValueAdded())) {
+                        showPopup();
+                    } else {
+                        hidePopup();
+                    }
+                    control.getProperties().remove(SHOW_POPUP_PROPERTY);
+                }
+            }
+        };
+
+        register(popup.showingProperty(), (obs, wasShowing, isShowing) -> control.pseudoClassStateChanged(SHOWING_POPUP_PSEUDO_CLASS, isShowing));
+        control.pseudoClassStateChanged(SHOWING_POPUP_PSEUDO_CLASS, popup.isShowing());
+        popup.onShowingProperty().bind(control.onShowingProperty());
+        popup.onShownProperty().bind(control.onShownProperty());
+        popup.onHidingProperty().bind(control.onHidingProperty());
+        popup.onHiddenProperty().bind(control.onHiddenProperty());
 
         displayLabel = new Label();
         displayLabel.getStyleClass().add("display-label");
@@ -96,38 +162,33 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
         addListenerToControl();
 
         getChildren().addAll(displayLabel, arrowButton);
+
+        // Check during skin initialization if the popup should be displayed
+        if (control.getProperties().containsKey(SHOW_POPUP_PROPERTY)) {
+            if (Boolean.TRUE.equals(control.getProperties().get(SHOW_POPUP_PROPERTY))) {
+                Platform.runLater(this::showPopup);
+            } else {
+                hidePopup();
+            }
+            control.getProperties().remove(SHOW_POPUP_PROPERTY);
+        }
     }
 
     private void addListenerToControl() {
-        control.itemsProperty().addListener((obs, oldItems, newItems) -> updatePseudoAndPopupContent());
+        register(control.itemsProperty(), itemsChangeListener);
 
-        control.extraButtonsPositionProperty().addListener((obs, oldPosition, newPosition) -> popup.updateExtraButtonsPosition());
+        register(control.itemConverterProperty(), itemConverterChangeListener);
+        register(control.selectedItemsConverterProperty(), itemConverterChangeListener);
+        register(control.promptTextProperty(), itemConverterChangeListener);
 
-        control.extraButtonsProviderProperty().addListener((obs, oldProvider, newProvider) -> popup.initializePopupContent());
+        register(control.getSelectionModel().selectedItemProperty(), selectItemChangedListener);
+        register(control.getSelectionModel().getSelectedItems(), selectItemsChangeListener);
+        register(control.getSelectionModel().selectionModeProperty(), selectionModeChangeListener);
 
-        control.itemConverterProperty().addListener((obs, oldConverter, newConverter) -> updateDisplayLabelText());
-        control.selectedItemsConverterProperty().addListener((obs, oldConverter, newConverter) -> updateDisplayLabelText());
-
-        control.getSelectionModel().selectedItemProperty().addListener(selectItemChangedListener);
-        control.getSelectionModel().getSelectedItems().addListener(selectItemsChangeListener);
-        control.getSelectionModel().selectionModeProperty().addListener(selectionModeChangeListener);
-
-        control.selectionModelProperty().addListener((obs, oldModel, newModel) -> {
-            if (oldModel != null) {
-                oldModel.selectedItemProperty().removeListener(selectItemChangedListener);
-                oldModel.getSelectedItems().removeListener(selectItemsChangeListener);
-                oldModel.selectionModeProperty().removeListener(selectionModeChangeListener);
-            }
-            if (newModel != null) {
-                newModel.selectedItemProperty().addListener(selectItemChangedListener);
-                newModel.getSelectedItems().addListener(selectItemsChangeListener);
-                newModel.selectionModeProperty().addListener(selectionModeChangeListener);
-            }
-            popup.initializePopupContent();
-        });
+        register(control.selectionModelProperty(), selectionModelChangeListener);
 
         // Handle readOnly property
-        control.readOnlyProperty().subscribe(isNowReadOnly -> {
+        register(control.readOnlyProperty(), (obs, wasReadOnly, isNowReadOnly) -> {
             pseudoClassStateChanged(READ_ONLY_PSEUDO_CLASS, isNowReadOnly);
 
             arrowButton.setVisible(!isNowReadOnly);
@@ -135,38 +196,30 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
                 popup.hide();
             }
         });
+        pseudoClassStateChanged(READ_ONLY_PSEUDO_CLASS, control.isReadOnly());
+        arrowButton.setVisible(!control.isReadOnly());
+        if (control.isReadOnly()) {
+            popup.hide();
+        }
 
         // Add event handler to control to show the popup
-        control.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-            if (!control.isDisabled() && !control.isReadOnly()) {
-                control.requestFocus();
-                if (popup.isShowing()) {
-                    popup.hide();
-                } else {
-                    popup.show(control);
-                }
-            }
-        });
+        registerHandler(control, MouseEvent.MOUSE_CLICKED, mouseClickedHandler);
 
-        control.getProperties().addListener((MapChangeListener<Object, Object>) change -> {
-            if (change.wasAdded()) {
-                if (change.getKey().equals("showPopup")) {
-                    if (Boolean.TRUE.equals(change.getValueAdded())) {
-                        showPopup();
-                    } else {
-                        hidePopup();
-                    }
-                }
-            }
-        });
+        register(control.getProperties(), propertiesChangeListener);
     }
 
+    /**
+     * Shows the selection popup when the control is interactive.
+     */
     public void showPopup() {
         if (!control.isDisabled() && !control.isReadOnly()) {
             popup.show(control);
         }
     }
 
+    /**
+     * Hides the selection popup.
+     */
     public void hidePopup() {
         popup.hide();
     }
@@ -188,10 +241,14 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
 
     private void updateEmptyPseudoClass() {
         switch (control.getSelectionModel().getSelectionMode()) {
-            case SINGLE ->
-                    control.pseudoClassStateChanged(EMPTY_SELECTION_PSEUDO_CLASS, control.getSelectionModel().getSelectedItem() == null);
-            case MULTIPLE ->
-                    control.pseudoClassStateChanged(EMPTY_SELECTION_PSEUDO_CLASS, control.getSelectionModel().getSelectedItems().isEmpty());
+            case SINGLE:
+                control.pseudoClassStateChanged(EMPTY_SELECTION_PSEUDO_CLASS, control.getSelectionModel().getSelectedItem() == null);
+                break;
+            case MULTIPLE:
+                control.pseudoClassStateChanged(EMPTY_SELECTION_PSEUDO_CLASS, control.getSelectionModel().getSelectedItems().isEmpty());
+                break;
+            default:
+                throw new IllegalStateException("Unexpected selection mode: " + control.getSelectionModel().getSelectionMode());
         }
     }
 
@@ -201,6 +258,9 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
         control.pseudoClassStateChanged(MULTIPLE_PSEUDO_CLASS, mode == SelectionMode.MULTIPLE);
     }
 
+    /**
+     * Updates the display label from the current selection and converters.
+     */
     public void updateDisplayLabelText() {
         SelectionMode mode = control.getSelectionModel().getSelectionMode();
         List<T> selectedItems;
@@ -214,11 +274,16 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
 
         StringConverter<List<T>> stringConverter = control.getSelectedItemsConverter();
         String text;
-        if (stringConverter != null) {
-            text = stringConverter.toString(selectedItems);
+
+        if (selectedItems.isEmpty()) {
+            text = control.getPromptText();
         } else {
-            // Use default conversion logic
-            text = getDefaultDisplayText(selectedItems);
+            if (stringConverter != null) {
+                text = stringConverter.toString(selectedItems);
+            } else {
+                // Use default conversion logic
+                text = getDefaultDisplayText(selectedItems);
+            }
         }
         displayLabel.setText(text);
     }
@@ -232,7 +297,7 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
             return convertItemToText(selectedItems.get(0));
         } else {
             // Build the display text
-            List<String> elements = selectedItems.stream().map(this::convertItemToText).toList();
+            List<String> elements = selectedItems.stream().map(this::convertItemToText).collect(java.util.stream.Collectors.toList());
             return String.join(", ", elements);
         }
     }
@@ -302,14 +367,19 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
     /**
      * Custom popup control to show the items in a popup.
      */
-    private class SelectionPopup extends CustomPopupControl {
+    private class SelectionPopup extends PopupControl {
 
         private static final String DEFAULT_STYLE_CLASS = "selection-popup";
-        private final SelectionBox<T> control;
+        private final Duration ANIM_DURATION = Duration.millis(200);
+
+        private final SelectionBox<T> owner;
+
+        private Transition showTransition;
+        private Transition hideTransition;
 
         public SelectionPopup(SelectionBox<T> owner) {
             getStyleClass().add(DEFAULT_STYLE_CLASS);
-            this.control = owner;
+            this.owner = owner;
 
             setAutoFix(true);
             setAutoHide(true);
@@ -333,37 +403,94 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
             getProperties().put(UPDATE_POPUP_CONTENT, true);
         }
 
-        public final void updateExtraButtonsPosition() {
-            getProperties().put(UPDATE_EXTRA_BUTTONS_POSITION, true);
-        }
-
         public final boolean isUpdating() {
-            if (getSkin() instanceof SelectionBoxSkin.SelectionPopupSkin currentSkin) {
+            if (getSkin() instanceof SelectionBoxSkin.SelectionPopupSkin) {
+                SelectionBoxSkin.SelectionPopupSkin currentSkin = (SelectionBoxSkin.SelectionPopupSkin) getSkin();
                 return currentSkin.isUpdating();
             }
             return false;
         }
 
-        @Override
         public void show(Node node) {
-            super.show(node);
+            Bounds bounds = owner.localToScreen(owner.getLayoutBounds());
+            super.show(node, bounds.getMinX(), bounds.getMaxY());
 
-            Skin<?> skin = getSkin();
-            if (skin != null && skin.getNode() instanceof Region popupContent) {
-                if (!popupContent.minWidthProperty().isBound()) {
-                    popupContent.minWidthProperty().bind(control.widthProperty());
-                }
+            Node popupNode = getSkin().getNode();
+            if (popupNode instanceof Region) {
+                Region region = (Region) popupNode;
+                region.setPrefWidth(Region.USE_COMPUTED_SIZE);
+                double popupNodeWidth = region.prefWidth(-1);
+                double prefWidth = Math.max(bounds.getWidth(), popupNodeWidth);
+                region.setPrefWidth(prefWidth);
             }
+
+            if (owner.isAnimationEnabled()) {
+                getShowTransition().stop();
+                popupNode.setOpacity(0);
+                getShowTransition().playFromStart();
+            } else {
+                popupNode.setOpacity(1);
+            }
+        }
+
+        @Override
+        public void hide() {
+            if (!isShowing()) {
+                return;
+            }
+            if (owner.isAnimationEnabled()) {
+                getShowTransition().stop();
+                getHideTransition().stop();
+                getHideTransition().playFromStart();
+            } else {
+                super.hide();
+            }
+        }
+
+        private Transition getShowTransition() {
+            if (showTransition == null) {
+                showTransition = createShowTransition();
+            }
+            return showTransition;
+        }
+
+        private Transition createShowTransition() {
+            FadeTransition fade = new FadeTransition(ANIM_DURATION, getSkin().getNode());
+            fade.setFromValue(0);
+            fade.setToValue(1);
+
+            fade.setOnFinished(e -> {
+                getSkin().getNode().setOpacity(1);
+            });
+            return fade;
+        }
+
+        private Transition getHideTransition() {
+            if (hideTransition == null) {
+                hideTransition = createHideTransition();
+            }
+            return hideTransition;
+        }
+
+        private Transition createHideTransition() {
+            FadeTransition fade = new FadeTransition(ANIM_DURATION, getSkin().getNode());
+            fade.setFromValue(1);
+            fade.setToValue(0);
+
+            fade.setOnFinished(e -> {
+                SelectionPopup.super.hide();
+                getSkin().getNode().setOpacity(0);
+            });
+            return fade;
         }
     }
 
     private class SelectionPopupSkin implements Skin<SelectionPopup> {
 
         private final SelectionPopup popup;
-        private final VBox contentBox;
+        private final BorderPane contentPane;
         private final VBox optionsBox;
-        private final VBox extraButtonsBox;
-        private final Separator separator;
+        private final ScrollPane scrollPane;
 
         // Use indices as keys to handle duplicate items
         private final Map<Integer, BooleanProperty> itemButtonProperties = new LinkedHashMap<>();
@@ -371,83 +498,65 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
         public SelectionPopupSkin(SelectionPopup popup) {
             this.popup = popup;
 
-            contentBox = new VBox(){
+            contentPane = new BorderPane() {
                 @Override
                 public String getUserAgentStylesheet() {
                     return Objects.requireNonNull(SelectionBox.class.getResource("selection-box.css")).toExternalForm();
                 }
             };
-            contentBox.getStyleClass().add("content");
-            contentBox.setPrefWidth(Region.USE_COMPUTED_SIZE);
+            contentPane.getStyleClass().add("content");
+            contentPane.setPrefWidth(Region.USE_COMPUTED_SIZE);
 
             // Selection buttons container
             optionsBox = new VBox();
             optionsBox.getStyleClass().add("options-box");
             optionsBox.setFillWidth(true);
-            optionsBox.managedProperty().bind(optionsBox.visibleProperty());
-            optionsBox.visibleProperty().bind(popup.getOwner().itemsProperty().emptyProperty().not());
+            optionsBox.setMinWidth(Region.USE_PREF_SIZE);
 
-            // Extra buttons container
-            extraButtonsBox = new VBox();
-            extraButtonsBox.getStyleClass().add("extra-buttons-box");
-            extraButtonsBox.setFillWidth(true);
-            extraButtonsBox.managedProperty().bind(extraButtonsBox.visibleProperty());
-            extraButtonsBox.visibleProperty().bind(popup.getOwner().showExtraButtonsProperty());
+            contentPane.topProperty().bind(control.topProperty());
+            contentPane.bottomProperty().bind(control.bottomProperty());
+            contentPane.leftProperty().bind(control.leftProperty());
+            contentPane.rightProperty().bind(control.rightProperty());
 
-            separator = new Separator();
-            separator.managedProperty().bind(separator.visibleProperty());
-            separator.visibleProperty().bind(extraButtonsBox.visibleProperty().and(optionsBox.visibleProperty()));
+            scrollPane = new ScrollPane(optionsBox);
+            scrollPane.getStyleClass().add("options-scroll-pane");
+            scrollPane.setFitToWidth(true);
+
+            optionsBox.widthProperty().addListener((obs, oldWidth, newWidth) -> {
+                if (scrollPane.getPrefViewportWidth() == 0.0) {
+                    scrollPane.setPrefViewportWidth(newWidth.doubleValue());
+                }
+            });
+
+            // Center If there are no items, show the placeholder, otherwise show the scroll pane
+            contentPane.centerProperty().bind(Bindings.createObjectBinding(() -> {
+                if (popup.getOwner().getItems().isEmpty()) {
+                    return popup.getOwner().getPlaceholder();
+                }
+                return scrollPane;
+            }, popup.getOwner().itemsProperty(), popup.getOwner().placeholderProperty()));
 
             // Initialize the popup content
             updatePopupContent();
             updateSelectionInPopup();
-            updateExtraButtonsPosition();
 
             // Listen to changes in the properties of the popup
             popup.getProperties().addListener((MapChangeListener<Object, Object>) change -> {
                 if (change.wasAdded()) {
-                    if (change.getKey().equals(UPDATE_POPUP_CONTENT)) {
+                    if (UPDATE_POPUP_CONTENT.equals(change.getKey())) {
                         updatePopupContent();
-                        popup.getProperties().remove(UPDATE_POPUP_CONTENT);
                     }
-                    if (change.getKey().equals(UPDATE_SELECTION_IN_POPUP)) {
+                    if (UPDATE_SELECTION_IN_POPUP.equals(change.getKey())) {
                         updateSelectionInPopup();
-                        popup.getProperties().remove(UPDATE_SELECTION_IN_POPUP);
-                    }
-                    if (change.getKey().equals(UPDATE_EXTRA_BUTTONS_POSITION)) {
-                        updateExtraButtonsPosition();
-                        popup.getProperties().remove(UPDATE_EXTRA_BUTTONS_POSITION);
                     }
                 }
             });
         }
 
         private void updatePopupContent() {
-            // Clear the content of the popup
-            contentBox.getChildren().clear();
+            scrollPane.setPrefViewportWidth(0.0);
             optionsBox.getChildren().clear();
-            extraButtonsBox.getChildren().clear();
             itemButtonProperties.clear();
-
-            // Extra buttons
-            Callback<MultipleSelectionModel<T>, List<Button>> extraButtonsProvider = popup.getOwner().getExtraButtonsProvider();
-            if (extraButtonsProvider != null) {
-                List<Button> buttons = extraButtonsProvider.call(popup.getOwner().getSelectionModel());
-                if (buttons != null) {
-                    buttons.forEach(button -> {
-                        UIUtil.addClassIfAbsent(button, "extra-button");
-                        if (button.getMaxWidth() == Region.USE_COMPUTED_SIZE && !button.maxWidthProperty().isBound()) {
-                            button.setMaxWidth(Double.MAX_VALUE);
-                        }
-                        button.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
-                            if (popup.getOwner().isAutoHideOnSelection()) {
-                                popup.hide();
-                            }
-                        });
-                    });
-                    extraButtonsBox.getChildren().addAll(buttons);
-                }
-            }
 
             // Get items
             List<T> items = popup.getOwner().getItems();
@@ -470,8 +579,8 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
                     optionsBox.getChildren().add(radioButton);
                 }
             }
-
-            updateExtraButtonsPosition();
+            // Always clear the update flag to avoid blocking future updates.
+            popup.getProperties().remove(UPDATE_POPUP_CONTENT);
         }
 
         private RadioButton createRadioButtonItem(T item, ToggleGroup toggleGroup, int index) {
@@ -481,13 +590,17 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
             radioButton.setMaxWidth(Double.MAX_VALUE);
             radioButton.setToggleGroup(toggleGroup);
             radioButton.setSelected(popup.getOwner().getSelectionModel().isSelected(index));
-            radioButton.setOnAction(e -> {
-                if (!isUpdating()) {
-                    if (radioButton.isSelected()) {
+            // Use onMouseClicked instead of onAction to ensure click on already-selected item still closes popup
+            radioButton.setOnMouseClicked(e -> {
+                if (!isUpdating() && e.getButton() == MouseButton.PRIMARY) {
+                    boolean alreadySelected = popup.getOwner().getSelectionModel().isSelected(index);
+
+                    if (!alreadySelected) {
                         popup.getOwner().getSelectionModel().clearAndSelect(index);
-                        if (popup.getOwner().isAutoHideOnSelection()) {
-                            popup.hide();
-                        }
+                    }
+
+                    if (popup.getOwner().isAutoHideOnSelection()) {
+                        popup.hide();
                     }
                 }
             });
@@ -525,13 +638,8 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
             }
 
             updating.set(false);
-        }
-
-        private void updateExtraButtonsPosition() {
-            switch (control.getExtraButtonsPosition()) {
-                case TOP -> contentBox.getChildren().setAll(extraButtonsBox, separator, optionsBox);
-                case BOTTOM -> contentBox.getChildren().setAll(optionsBox, separator, extraButtonsBox);
-            }
+            // Always clear the update flag to avoid blocking future updates.
+            popup.getProperties().remove(UPDATE_SELECTION_IN_POPUP);
         }
 
         // updating
@@ -553,7 +661,7 @@ public class SelectionBoxSkin<T> extends SkinBase<SelectionBox<T>> {
 
         @Override
         public Node getNode() {
-            return contentBox;
+            return contentPane;
         }
 
         @Override

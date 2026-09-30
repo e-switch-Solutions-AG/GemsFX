@@ -1,6 +1,7 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.LimitedTextAreaSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import com.dlsc.gemsfx.util.IntegerRange;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -18,6 +19,9 @@ import javafx.css.Styleable;
 import javafx.css.StyleableBooleanProperty;
 import javafx.css.StyleableProperty;
 import javafx.css.converter.BooleanConverter;
+import javafx.css.converter.EnumConverter;
+import javafx.css.converter.SizeConverter;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Skin;
 
 import java.util.ArrayList;
@@ -41,6 +45,17 @@ import java.util.Objects;
  * Use cases include form fields where input character count is restricted within a certain range
  * for validation purposes, or text areas that need to filter out specific unwanted characters or
  * phrases.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-length-display-mode}</td><td>{@code LengthDisplayMode}</td><td>Mode for displaying the character count</td></tr>
+ *     <tr><td>{@code -fx-show-bottom}</td><td>{@code boolean}</td><td>Whether to show the bottom bar</td></tr>
+ *     <tr><td>{@code -fx-warning-threshold}</td><td>{@code double}</td><td>Threshold for triggering the warning state (0–1)</td></tr>
+ *   </tbody>
+ * </table>
  */
 
 public class LimitedTextArea extends ResizableTextArea {
@@ -48,6 +63,9 @@ public class LimitedTextArea extends ResizableTextArea {
     private static final String DEFAULT_STYLE_CLASS = "limited-text-area";
     private static final boolean DEFAULT_SHOW_BOTTOM = true;
 
+    /**
+     * The supported modes for displaying the text length indicator.
+     */
     public enum LengthDisplayMode {
 
         /**
@@ -67,17 +85,39 @@ public class LimitedTextArea extends ResizableTextArea {
 
     }
 
+    /**
+     * Constructs a new limited text area.
+     */
     public LimitedTextArea() {
         getStyleClass().add(DEFAULT_STYLE_CLASS);
-
-        getStylesheets().add(Objects.requireNonNull(LimitedTextArea.class.getResource("limited-text-area.css")).toExternalForm());
+        AccessibilityUtil.setRole(this, AccessibleRole.TEXT_AREA);
     }
 
+    /**
+     * Constructs a new limited text area with the given text.
+     *
+     * @param text the initial text
+     */
     public LimitedTextArea(String text) {
         this();
         setText(text);
     }
 
+    /**
+     * Returns the stylesheet used by this control.
+     *
+     * @return the user agent stylesheet
+     */
+    @Override
+    public String getUserAgentStylesheet() {
+        return Objects.requireNonNull(LimitedTextArea.class.getResource("limited-text-area.css")).toExternalForm();
+    }
+
+    /**
+     * Creates the default skin for this control.
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new LimitedTextAreaSkin(this, outOfRange);
@@ -85,19 +125,44 @@ public class LimitedTextArea extends ResizableTextArea {
 
     private BooleanProperty showBottom;
 
+    /**
+     * Controls whether the bottom area (containing the character count and tips) is shown.
+     * <p>
+     * Can be set via CSS using the {@code -fx-show-bottom} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code true}.
+     * </p>
+     *
+     * @return the show bottom property
+     */
     public final BooleanProperty showBottomProperty() {
         if (showBottom == null) {
             showBottom = new StyleableBooleanProperty(DEFAULT_SHOW_BOTTOM) {
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the owning bean
+                 */
                 @Override
                 public Object getBean() {
                     return LimitedTextArea.this;
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the property name
+                 */
                 @Override
                 public String getName() {
                     return "showBottom";
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the CSS metadata for this property
+                 */
                 @Override
                 public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
                     return StyleableProperties.SHOW_BOTTOM;
@@ -140,6 +205,11 @@ public class LimitedTextArea extends ResizableTextArea {
      */
     private final ObservableList<String> excludedItems = FXCollections.observableArrayList();
 
+    /**
+     * Returns the list of excluded text fragments.
+     *
+     * @return the excluded items
+     */
     public final ObservableList<String> getExcludedItems() {
         return excludedItems;
     }
@@ -152,6 +222,8 @@ public class LimitedTextArea extends ResizableTextArea {
 
     /**
      * The tips property used to display a hint or description of the text area.
+     *
+     * @return the tips property
      */
     public final StringProperty tipsProperty() {
         return tips;
@@ -169,6 +241,8 @@ public class LimitedTextArea extends ResizableTextArea {
 
     /**
      * A read-only property indicating whether the text content is over the maximum length or under the minimum length.
+     *
+     * @return the outOfRange property
      */
     public final ReadOnlyBooleanProperty outOfRangeProperty() {
         return outOfRange.getReadOnlyProperty();
@@ -187,6 +261,11 @@ public class LimitedTextArea extends ResizableTextArea {
     /**
      * The length display mode property defines when the text length indicator label should be displayed.
      * {@link LengthDisplayMode#AUTO}, {@link LengthDisplayMode#ALWAYS_SHOW}, {@link LengthDisplayMode#ALWAYS_HIDE}
+     * <p>
+     * Can be set via CSS using the {@code -fx-length-display-mode} property.
+     * Valid values are: {@code auto}, {@code always-show}, {@code always-hide}.
+     * The default value is {@code auto}.
+     * </p>
      *
      * @return the length display mode property
      */
@@ -207,6 +286,13 @@ public class LimitedTextArea extends ResizableTextArea {
     /**
      * The warning threshold is a value between 0 and 1.
      * When the text length is greater than or equal to the maximum length times the warning threshold, the warning style will be applied.
+     * <p>
+     * Can be set via CSS using the {@code -fx-warning-threshold} property.
+     * Valid values are: numbers in the range {@code 0.0}–{@code 1.0}.
+     * The default value is {@code 0.9}.
+     * </p>
+     *
+     * @return the warning threshold property
      */
     public final DoubleProperty warningThresholdProperty() {
         return warningThreshold;
@@ -216,20 +302,89 @@ public class LimitedTextArea extends ResizableTextArea {
         this.warningThreshold.set(warningThreshold);
     }
 
+    /**
+     * Returns the clamped warning threshold value.
+     *
+     * @return the valid warning threshold
+     */
     public final double getValidWarningThreshold() {
         return Math.min(Math.max(getWarningThreshold(), 0), 0.999999);
     }
 
     private static class StyleableProperties {
 
+        private static final CssMetaData<LimitedTextArea, Number> WARNING_THRESHOLD = new CssMetaData<>(
+                "-fx-warning-threshold", SizeConverter.getInstance(), 0.9d) {
+
+            /**
+             * {@inheritDoc}
+             *
+             * @param control the control to inspect
+             * @return the styleable property
+             */
+            @Override
+            public StyleableProperty<Number> getStyleableProperty(LimitedTextArea control) {
+                return (StyleableProperty<Number>) control.warningThresholdProperty();
+            }
+
+            /**
+             * {@inheritDoc}
+             *
+             * @param control the control to inspect
+             * @return true if the property can be styled
+             */
+            @Override
+            public boolean isSettable(LimitedTextArea control) {
+                return !control.warningThreshold.isBound();
+            }
+        };
+
+        private static final CssMetaData<LimitedTextArea, LengthDisplayMode> LENGTH_DISPLAY_MODE = new CssMetaData<>(
+                "-fx-length-display-mode", new EnumConverter<>(LengthDisplayMode.class), LengthDisplayMode.AUTO) {
+
+            /**
+             * {@inheritDoc}
+             *
+             * @param control the control to inspect
+             * @return the styleable property
+             */
+            @Override
+            public StyleableProperty<LengthDisplayMode> getStyleableProperty(LimitedTextArea control) {
+                return (StyleableProperty<LengthDisplayMode>) control.lengthDisplayModeProperty();
+            }
+
+            /**
+             * {@inheritDoc}
+             *
+             * @param control the control to inspect
+             * @return true if the property can be styled
+             */
+            @Override
+            public boolean isSettable(LimitedTextArea control) {
+                return !control.lengthDisplayMode.isBound();
+            }
+        };
+
         private static final CssMetaData<LimitedTextArea, Boolean> SHOW_BOTTOM = new CssMetaData<>(
                 "-fx-show-bottom", BooleanConverter.getInstance(), DEFAULT_SHOW_BOTTOM) {
 
+            /**
+             * {@inheritDoc}
+             *
+             * @param control the control to inspect
+             * @return the styleable property
+             */
             @Override
             public StyleableProperty<Boolean> getStyleableProperty(LimitedTextArea control) {
                 return (StyleableProperty<Boolean>) control.showBottomProperty();
             }
 
+            /**
+             * {@inheritDoc}
+             *
+             * @param control the control to inspect
+             * @return true if the property can be styled
+             */
             @Override
             public boolean isSettable(LimitedTextArea control) {
                 return control.showBottom == null || !control.showBottom.isBound();
@@ -241,15 +396,27 @@ public class LimitedTextArea extends ResizableTextArea {
         static {
             final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(ResizableTextArea.getClassCssMetaData());
             styleables.add(SHOW_BOTTOM);
+            styleables.add(WARNING_THRESHOLD);
+            styleables.add(LENGTH_DISPLAY_MODE);
             STYLEABLES = Collections.unmodifiableList(styleables);
         }
     }
 
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the control CSS metadata
+     */
     @Override
     public List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the class CSS metadata
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return LimitedTextArea.StyleableProperties.STYLEABLES;
     }

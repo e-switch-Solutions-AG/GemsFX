@@ -2,26 +2,37 @@ package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.util.HistoryManager;
 import com.dlsc.gemsfx.util.StringHistoryManager;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import com.dlsc.gemsfx.util.UIUtil;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.css.CssMetaData;
 import javafx.css.PseudoClass;
+import javafx.css.Styleable;
+import javafx.css.StyleableBooleanProperty;
+import javafx.css.StyleableProperty;
+import javafx.css.converter.BooleanConverter;
 import javafx.event.ActionEvent;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import org.apache.commons.lang3.StringUtils;
-import org.controlsfx.control.textfield.CustomTextField;
+import com.dlsc.gemsfx.util.StringUtils;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign.MaterialDesign;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * A custom text field specifically designed for search functionality. This class enhances a text field with features
@@ -38,6 +49,15 @@ import java.util.Objects;
  * Additionally, history can be manually added based on user actions, such as after typing text and selecting an item
  * from a ListView or TableView that displays results, or through other interactions, by calling the {@link #getHistoryManager()}
  * method to access the {@link StringHistoryManager} instance. then calling the {@link StringHistoryManager#add(Object)}} method.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-round}</td><td>{@code Boolean}</td><td>Whether the text field has rounded corners.</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class SearchTextField extends CustomTextField {
 
@@ -56,11 +76,12 @@ public class SearchTextField extends CustomTextField {
      */
     public SearchTextField() {
         getStyleClass().add("search-text-field");
+        AccessibilityUtil.setRole(this, AccessibleRole.TEXT_FIELD);
         UIUtil.toggleClassBasedOnObservable(this, "round", roundProperty());
 
-        setPromptText("Search...");
+        setPromptText(ResourceBundleManager.getString(ResourceBundleManager.BundleType.SEARCH_TEXT_FIELD, "prompt.search", "Search..."));
 
-        Label placeholder = new Label("No items.");
+        Label placeholder = new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.SEARCH_TEXT_FIELD, "placeholder.history-empty", "No items."));
         placeholder.getStyleClass().add("default-placeholder");
         setHistoryPlaceholder(placeholder);
 
@@ -142,6 +163,11 @@ public class SearchTextField extends CustomTextField {
         return clearIconWrapper;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(SearchTextField.class.getResource("search-text-field.css")).toExternalForm();
@@ -222,11 +248,19 @@ public class SearchTextField extends CustomTextField {
     /**
      * Determines whether the text field should have round corners.
      *
+     * <p>CSS: {@code -fx-round: true|false} — default: {@code false}</p>
+     *
      * @return true if the text field should have round corners, false otherwise
      */
     public final BooleanProperty roundProperty() {
         if (round == null) {
-            round = new SimpleBooleanProperty(this, "round", DEFAULT_ROUND);
+            round = new StyleableBooleanProperty(DEFAULT_ROUND) {
+                @Override public Object getBean() { return SearchTextField.this; }
+                @Override public String getName() { return "round"; }
+                @Override public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+                    return StyleableProperties.ROUND;
+                }
+            };
         }
         return round;
     }
@@ -261,6 +295,9 @@ public class SearchTextField extends CustomTextField {
     public final ObjectProperty<HistoryManager<String>> historyManagerProperty() {
         if (historyManager == null) {
             historyManager = new SimpleObjectProperty<>(this, "historyManager") {
+                /**
+                 * {@inheritDoc}
+                 */
                 @Override
                 protected void invalidated() {
                     pseudoClassStateChanged(DISABLED_POPUP_PSEUDO_CLASS, get() == null);
@@ -277,4 +314,62 @@ public class SearchTextField extends CustomTextField {
     public final void setHistoryManager(HistoryManager<String> historyManager) {
         historyManagerProperty().set(historyManager);
     }
+
+    private static class StyleableProperties {
+
+        private static final CssMetaData<SearchTextField, Boolean> ROUND =
+                new CssMetaData<>("-fx-round", BooleanConverter.getInstance(), DEFAULT_ROUND) {
+                    /**
+                     * {@inheritDoc}
+                     *
+                     * @return true if the property can be styled
+                     *
+                     * @param c the control to inspect
+                     */
+                    @Override
+                    public boolean isSettable(SearchTextField c) {
+                        return c.round == null || !c.round.isBound();
+                    }
+
+                    /**
+                     * {@inheritDoc}
+                     *
+                     * @return the styleable property
+                     *
+                     * @param c the control to inspect
+                     */
+                    @Override
+                    public StyleableProperty<Boolean> getStyleableProperty(SearchTextField c) {
+                        return (StyleableProperty<Boolean>) c.roundProperty();
+                    }
+                };
+
+        private static final List<CssMetaData<? extends Styleable, ?>> STYLEABLES;
+
+        static {
+            final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(TextField.getClassCssMetaData());
+            styleables.add(ROUND);
+            STYLEABLES = Collections.unmodifiableList(styleables);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return the supported CSS metadata
+     */
+    @Override
+    public List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
+        return getClassCssMetaData();
+    }
+
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the CSS metadata supported by this control
+     */
+    public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
+        return StyleableProperties.STYLEABLES;
+    }
+
 }

@@ -1,0 +1,28 @@
+/*
+ * Structural styling shared by all themes. Colors live in the theme specific
+ * files skeleton-pane-app-modena.css and skeleton-pane-app-atlantafx.css.
+ */
+
+.social-card {
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 16px 18px;
+}
+
+.card-body {
+    -fx-padding: 4px 0 0 0;
+}
+
+.real-avatar > .text-wrapper > .initials-text {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.real-name {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.real-body {
+    -fx-font-size: 13px;
+}

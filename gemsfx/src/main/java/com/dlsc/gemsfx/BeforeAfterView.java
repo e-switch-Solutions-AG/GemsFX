@@ -3,16 +3,19 @@ package com.dlsc.gemsfx;
 import com.dlsc.gemsfx.skins.BeforeAfterViewSkin;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.css.CssMetaData;
 import javafx.css.PseudoClass;
 import javafx.css.Styleable;
+import javafx.css.StyleableDoubleProperty;
 import javafx.css.StyleableObjectProperty;
 import javafx.css.StyleableProperty;
 import javafx.css.converter.EnumConverter;
+import javafx.css.converter.SizeConverter;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
@@ -24,16 +27,37 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
-
+/**
+ * A view capable of managing / displaying two nodes in such a way that the user can show more
+ * or less of each node at the same time. This is very useful to display before and after scenarios.
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-divider-position}</td><td>{@code double}</td><td>Position of the divider from 0.0 to 1.0</td></tr>
+ *     <tr><td>{@code -fx-orientation}</td><td>{@code Orientation}</td><td>Orientation of the before/after view</td></tr>
+ *   </tbody>
+ * </table>
+ */
 public class BeforeAfterView extends Control {
 
     private static final Orientation DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
     private static final PseudoClass PSEUDO_CLASS_HORIZONTAL = PseudoClass.getPseudoClass("horizontal");
     private static final PseudoClass PSEUDO_CLASS_VERTICAL = PseudoClass.getPseudoClass("vertical");
 
+    /**
+     * Constructs a new view. the two nodes have to be set or bound later.
+     *
+     * @see #beforeProperty()
+     * @see #afterProperty()
+     */
     public BeforeAfterView() {
         getStyleClass().add("before-after-view");
+        AccessibilityUtil.setRole(this, AccessibleRole.SLIDER, ResourceBundleManager.getString(ResourceBundleManager.BundleType.BEFORE_AFTER_VIEW, "accessible.role-description", "before after comparison"));
 
         beforeProperty().addListener(it -> {
             Node node = getBefore();
@@ -53,37 +77,99 @@ public class BeforeAfterView extends Control {
         updatePseudoClass();
     }
 
-    private void updatePseudoClass() {
-        pseudoClassStateChanged(PSEUDO_CLASS_HORIZONTAL, getOrientation().equals(Orientation.HORIZONTAL));
-        pseudoClassStateChanged(PSEUDO_CLASS_VERTICAL, getOrientation().equals(Orientation.VERTICAL));
-    }
-
+    /**
+     * Constructs a new view with the given before and after nodes.
+     *
+     * @param beforeNode the node showing the "before" state
+     * @param afterNode the node showing the "after" state
+     */
     public BeforeAfterView(Node beforeNode, Node afterNode) {
         this();
         setBefore(beforeNode);
         setAfter(afterNode);
     }
 
+    /**
+     * Constructs a new view with the given before and after images.
+     *
+     * @param beforeImage a "before" image that will be wrapped in an image view
+     * @param afterImage an "after" image that will be wrapped in an image view
+     */
     public BeforeAfterView(Image beforeImage, Image afterImage) {
         this(new ImageView(beforeImage), new ImageView(afterImage));
     }
 
+    /**
+     * Creates the default skin for this control.
+     *
+     * @return the default skin
+     */
     @Override
     protected Skin<?> createDefaultSkin() {
         return new BeforeAfterViewSkin(this);
     }
 
+    private void updatePseudoClass() {
+        pseudoClassStateChanged(PSEUDO_CLASS_HORIZONTAL, getOrientation().equals(Orientation.HORIZONTAL));
+        pseudoClassStateChanged(PSEUDO_CLASS_VERTICAL, getOrientation().equals(Orientation.VERTICAL));
+    }
+
+    /**
+     * Returns the stylesheet used by this control.
+     *
+     * @return the user agent stylesheet
+     */
     @Override
     public String getUserAgentStylesheet() {
         return Objects.requireNonNull(BeforeAfterView.class.getResource("before-after-view.css")).toExternalForm();
     }
 
-    private final DoubleProperty dividerPosition = new SimpleDoubleProperty(this, "dividerPosition", .5);
+    private final StyleableDoubleProperty dividerPosition = new StyleableDoubleProperty(.5) {
+        /**
+         * {@inheritDoc}
+         *
+         * @return the owning bean
+         */
+        @Override
+        public Object getBean() {
+            return BeforeAfterView.this;
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * @return the property name
+         */
+        @Override
+        public String getName() {
+            return "dividerPosition";
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * @return the CSS metadata for this property
+         */
+        @Override
+        public CssMetaData<? extends Styleable, Number> getCssMetaData() {
+            return StyleableProperties.DIVIDER_POSITION;
+        }
+    };
 
     public final double getDividerPosition() {
         return dividerPosition.get();
     }
 
+    /**
+     * Stores the position of the divider within the value range of zero to 1.
+     * <p>
+     * Can be set via CSS using the {@code -fx-divider-position} property.
+     * Valid values are: numbers in the range 0.0–1.0.
+     * The default value is {@code 0.5}.
+     * </p>
+     *
+     * @return the property
+     */
     public final DoubleProperty dividerPositionProperty() {
         return dividerPosition;
     }
@@ -92,8 +178,7 @@ public class BeforeAfterView extends Control {
         this.dividerPosition.set(dividerPosition);
     }
 
-
-    private final ObjectProperty<Node> before = new SimpleObjectProperty<>(this, "before", new Label("Before"){
+    private final ObjectProperty<Node> before = new SimpleObjectProperty<>(this, "before", new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.BEFORE_AFTER_VIEW, "placeholder.before", "Before")){
         {
             setPrefSize(600, 400);
             setStyle("-fx-background-color: red;");
@@ -104,6 +189,11 @@ public class BeforeAfterView extends Control {
         return before.get();
     }
 
+    /**
+     * Stores the node used for displaying the "before" state.
+     *
+     * @return the node used to visualize "before"
+     */
     public final ObjectProperty<Node> beforeProperty() {
         return before;
     }
@@ -112,7 +202,7 @@ public class BeforeAfterView extends Control {
         this.before.set(before);
     }
 
-    private final ObjectProperty<Node> after = new SimpleObjectProperty<>(this, "after", new Label("After"){
+    private final ObjectProperty<Node> after = new SimpleObjectProperty<>(this, "after", new Label(ResourceBundleManager.getString(ResourceBundleManager.BundleType.BEFORE_AFTER_VIEW, "placeholder.after", "After")){
         {
             setPrefSize(600, 400);
             setStyle("-fx-background-color: green;");
@@ -124,6 +214,11 @@ public class BeforeAfterView extends Control {
         return after.get();
     }
 
+    /**
+     * Stores the node used for displaying the "after" state.
+     *
+     * @return the node used to visualize "after"
+     */
     public final ObjectProperty<Node> afterProperty() {
         return after;
     }
@@ -139,9 +234,12 @@ public class BeforeAfterView extends Control {
     }
 
     /**
-     * Sets the orientation of the before-after view.
+     * Sets the orientation of the before / after view.
      * <p>
-     * Default value is {@link Orientation#HORIZONTAL}
+     * Can be set via CSS using the {@code -fx-orientation} property.
+     * Valid values are: {@code horizontal} or {@code vertical}.
+     * The default value is {@code horizontal}.
+     * </p>
      *
      * @return the orientation property
      */
@@ -149,21 +247,39 @@ public class BeforeAfterView extends Control {
         if (orientation == null) {
             orientation = new StyleableObjectProperty<>(DEFAULT_ORIENTATION) {
 
+                /**
+                 * {@inheritDoc}
+                 */
                 @Override
                 protected void invalidated() {
                     updatePseudoClass();
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the owning bean
+                 */
                 @Override
                 public Object getBean() {
                     return BeforeAfterView.this;
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the property name
+                 */
                 @Override
                 public String getName() {
                     return "orientation";
                 }
 
+                /**
+                 * {@inheritDoc}
+                 *
+                 * @return the CSS metadata for this property
+                 */
                 @Override
                 public CssMetaData<? extends Styleable, Orientation> getCssMetaData() {
                     return StyleableProperties.ORIENTATION;
@@ -179,13 +295,51 @@ public class BeforeAfterView extends Control {
 
     private static class StyleableProperties {
 
+        private static final CssMetaData<BeforeAfterView, Number> DIVIDER_POSITION = new CssMetaData<>(
+                "-fx-divider-position", SizeConverter.getInstance(), .5d) {
+
+            /**
+             * {@inheritDoc}
+             *
+             * @param view the control to inspect
+             * @return the styleable property
+             */
+            @Override
+            public StyleableProperty<Number> getStyleableProperty(BeforeAfterView view) {
+                return (StyleableProperty<Number>) view.dividerPositionProperty();
+            }
+
+            /**
+             * {@inheritDoc}
+             *
+             * @param view the control to inspect
+             * @return true if the property can be styled
+             */
+            @Override
+            public boolean isSettable(BeforeAfterView view) {
+                return !view.dividerPosition.isBound();
+            }
+        };
+
         private static final CssMetaData<BeforeAfterView, Orientation> ORIENTATION =
                 new CssMetaData<>("-fx-orientation", new EnumConverter<>(Orientation.class), DEFAULT_ORIENTATION) {
+                    /**
+                     * {@inheritDoc}
+                     *
+                     * @param view the control to inspect
+                     * @return true if the property can be styled
+                     */
                     @Override
                     public boolean isSettable(BeforeAfterView view) {
                         return view.orientation == null || !view.orientation.isBound();
                     }
 
+                    /**
+                     * {@inheritDoc}
+                     *
+                     * @param view the control to inspect
+                     * @return the styleable property
+                     */
                     @Override
                     public StyleableProperty<Orientation> getStyleableProperty(BeforeAfterView view) {
                         return (StyleableProperty<Orientation>) view.orientationProperty();
@@ -197,17 +351,27 @@ public class BeforeAfterView extends Control {
         static {
             final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(Control.getClassCssMetaData());
             styleables.add(ORIENTATION);
+            styleables.add(DIVIDER_POSITION);
             STYLEABLES = Collections.unmodifiableList(styleables);
         }
     }
 
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the control CSS metadata
+     */
     @Override
     public List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata supported by this control.
+     *
+     * @return the class CSS metadata
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return BeforeAfterView.StyleableProperties.STYLEABLES;
     }
-
 }

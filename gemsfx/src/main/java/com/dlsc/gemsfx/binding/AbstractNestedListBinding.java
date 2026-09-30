@@ -23,6 +23,9 @@ import java.util.stream.Stream;
  */
 public abstract class AbstractNestedListBinding<T, U> extends ObjectBinding<U> {
 
+    /**
+     * The observable outer list whose nested observable lists are observed by this binding.
+     */
     protected final ObservableList<ObservableList<T>> source;
     private final ListChangeListener<T> innerListChangeListener = change -> {
         while (change.next()) {
@@ -77,12 +80,20 @@ public abstract class AbstractNestedListBinding<T, U> extends ObjectBinding<U> {
         }
     }
 
+    /**
+     * Returns the flattened stream of all non-null source elements.
+     *
+     * @return the flattened source stream
+     */
     protected Stream<T> flattenSource() {
         return source.stream()
                 .filter(Objects::nonNull)
                 .flatMap(List::stream);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void dispose() {
         source.forEach(this::safeRemoveListener);

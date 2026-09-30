@@ -17,6 +17,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+/**
+ * Default skin for {@link TreeNodeView}.
+ * <p>
+ * The skin computes node positions for regular and compact layouts, creates cells
+ * through the view's cell factory, and draws links using the configured link strategy.
+ *
+ * @param <T> the type of the value stored in each tree node
+ */
 public class TreeNodeViewSkin<T> extends SkinBase<TreeNodeView<T>> {
     private final Map<TreeNode<T>, InvalidationListener> expandListenerMap = new HashMap<>();
     private final Map<TreeNode<T>, InvalidationListener> invailidateListenerMap = new HashMap<>();
@@ -49,6 +57,11 @@ public class TreeNodeViewSkin<T> extends SkinBase<TreeNodeView<T>> {
 
     private final Group contentGroup = new Group();
 
+    /**
+     * Creates a skin for the given tree node view.
+     *
+     * @param view the control shown by this skin
+     */
     public TreeNodeViewSkin(TreeNodeView<T> view) {
         super(view);
         contentGroup.getStyleClass().add("tree-content");
@@ -571,65 +584,109 @@ public class TreeNodeViewSkin<T> extends SkinBase<TreeNodeView<T>> {
 
     private double computeRegularAdjustedXPosition(double x, double maxLevelWidth, double nodeWidth, HPos alignment, TreeNodeView.LayoutDirection direction) {
         if (direction == TreeNodeView.LayoutDirection.LEFT_TO_RIGHT) {
-            return switch (alignment) {
-                case LEFT -> x;
-                case CENTER -> x + (maxLevelWidth - nodeWidth) / 2;
-                case RIGHT -> x + maxLevelWidth - nodeWidth;
-            };
+            switch (alignment) {
+                case LEFT:
+                    return x;
+                case CENTER:
+                    return x + (maxLevelWidth - nodeWidth) / 2;
+                case RIGHT:
+                    return x + maxLevelWidth - nodeWidth;
+                default:
+                    throw new IllegalStateException("Unexpected horizontal alignment: " + alignment);
+            }
         } else { // RIGHT_TO_LEFT
-            return switch (alignment) {
-                case LEFT -> x - maxLevelWidth;
-                case CENTER -> x - (maxLevelWidth + nodeWidth) / 2;
-                case RIGHT -> x - nodeWidth;
-            };
+            switch (alignment) {
+                case LEFT:
+                    return x - maxLevelWidth;
+                case CENTER:
+                    return x - (maxLevelWidth + nodeWidth) / 2;
+                case RIGHT:
+                    return x - nodeWidth;
+                default:
+                    throw new IllegalStateException("Unexpected horizontal alignment: " + alignment);
+            }
         }
     }
 
     private double computeRegularAdjustedYPosition(double y, double maxLevelHeight, double nodeHeight, VPos alignment, TreeNodeView.LayoutDirection layoutDirection) {
         if (layoutDirection == TreeNodeView.LayoutDirection.TOP_TO_BOTTOM) {
-            return switch (alignment) {
-                case TOP -> y;
-                case CENTER -> y + (maxLevelHeight - nodeHeight) / 2;
-                case BASELINE, BOTTOM -> y + maxLevelHeight - nodeHeight;
-            };
+            switch (alignment) {
+                case TOP:
+                    return y;
+                case CENTER:
+                    return y + (maxLevelHeight - nodeHeight) / 2;
+                case BASELINE:
+                case BOTTOM:
+                    return y + maxLevelHeight - nodeHeight;
+                default:
+                    throw new IllegalStateException("Unexpected vertical alignment: " + alignment);
+            }
         } else {
-            return switch (alignment) {
-                case TOP -> y - maxLevelHeight;
-                case CENTER -> y - (maxLevelHeight + nodeHeight) / 2;
-                case BASELINE, BOTTOM -> y - nodeHeight;
-            };
+            switch (alignment) {
+                case TOP:
+                    return y - maxLevelHeight;
+                case CENTER:
+                    return y - (maxLevelHeight + nodeHeight) / 2;
+                case BASELINE:
+                case BOTTOM:
+                    return y - nodeHeight;
+                default:
+                    throw new IllegalStateException("Unexpected vertical alignment: " + alignment);
+            }
         }
     }
 
     private double computeCompactAdjustedYPosition(double y, double maxLevelHeight, double nodeHeight, VPos alignment, TreeNodeView.LayoutDirection layoutDirection) {
         if (layoutDirection == TreeNodeView.LayoutDirection.TOP_TO_BOTTOM) {
-            return switch (alignment) {
-                case TOP -> y;
-                case CENTER -> y + (maxLevelHeight - nodeHeight) / 2;
-                case BASELINE, BOTTOM -> y + maxLevelHeight - nodeHeight;
-            };
+            switch (alignment) {
+                case TOP:
+                    return y;
+                case CENTER:
+                    return y + (maxLevelHeight - nodeHeight) / 2;
+                case BASELINE:
+                case BOTTOM:
+                    return y + maxLevelHeight - nodeHeight;
+                default:
+                    throw new IllegalStateException("Unexpected vertical alignment: " + alignment);
+            }
         } else {
-            return switch (alignment) {
-                case TOP -> y;
-                case CENTER -> y + (maxLevelHeight / 2) - (nodeHeight / 2);
-                case BASELINE, BOTTOM -> y + maxLevelHeight - nodeHeight;
-            };
+            switch (alignment) {
+                case TOP:
+                    return y;
+                case CENTER:
+                    return y + (maxLevelHeight / 2) - (nodeHeight / 2);
+                case BASELINE:
+                case BOTTOM:
+                    return y + maxLevelHeight - nodeHeight;
+                default:
+                    throw new IllegalStateException("Unexpected vertical alignment: " + alignment);
+            }
         }
     }
 
     private double computeCompactAdjustedXPosition(double x, double maxLevelWidth, double nodeWidth, HPos alignment, TreeNodeView.LayoutDirection direction) {
         if (direction == TreeNodeView.LayoutDirection.LEFT_TO_RIGHT) {
-            return switch (alignment) {
-                case LEFT -> x;
-                case CENTER -> x + (maxLevelWidth - nodeWidth) / 2;
-                case RIGHT -> x + maxLevelWidth - nodeWidth;
-            };
+            switch (alignment) {
+                case LEFT:
+                    return x;
+                case CENTER:
+                    return x + (maxLevelWidth - nodeWidth) / 2;
+                case RIGHT:
+                    return x + maxLevelWidth - nodeWidth;
+                default:
+                    throw new IllegalStateException("Unexpected horizontal alignment: " + alignment);
+            }
         } else {
-            return switch (alignment) {
-                case LEFT -> x + maxLevelWidth - nodeWidth;
-                case CENTER -> x + (maxLevelWidth / 2) - (nodeWidth / 2);
-                case RIGHT -> x;
-            };
+            switch (alignment) {
+                case LEFT:
+                    return x + maxLevelWidth - nodeWidth;
+                case CENTER:
+                    return x + (maxLevelWidth / 2) - (nodeWidth / 2);
+                case RIGHT:
+                    return x;
+                default:
+                    throw new IllegalStateException("Unexpected horizontal alignment: " + alignment);
+            }
         }
     }
 
@@ -716,10 +773,22 @@ public class TreeNodeViewSkin<T> extends SkinBase<TreeNodeView<T>> {
         childrenListListenerMap.clear();
     }
 
+    /**
+     * Computes the width used to lay out the given node.
+     *
+     * @param node the node whose width is computed
+     * @return the node-specific width or the view's default cell width
+     */
     public double computeNodeWidth(TreeNode<T> node) {
         return node.getWidth() == TreeNode.USE_TREE_CELL_SIZE ? getSkinnable().getCellWidth() : node.getWidth();
     }
 
+    /**
+     * Computes the height used to lay out the given node.
+     *
+     * @param node the node whose height is computed
+     * @return the node-specific height or the view's default cell height
+     */
     public double computeNodeHeight(TreeNode<T> node) {
         return node.getHeight() == TreeNode.USE_TREE_CELL_SIZE ? getSkinnable().getCellHeight() : node.getHeight();
     }
@@ -744,6 +813,9 @@ public class TreeNodeViewSkin<T> extends SkinBase<TreeNodeView<T>> {
         return computePrefHeight(width, topInset, rightInset, bottomInset, leftInset);
     }
 
+    /**
+     * Rebuilds the visual tree.
+     */
     public void refresh() {
         buildTree();
     }

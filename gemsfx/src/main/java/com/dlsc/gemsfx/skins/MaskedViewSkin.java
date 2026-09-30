@@ -5,7 +5,6 @@ import javafx.beans.InvalidationListener;
 import javafx.beans.WeakInvalidationListener;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.control.SkinBase;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
@@ -13,7 +12,13 @@ import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.shape.Rectangle;
 
-public class MaskedViewSkin extends SkinBase<MaskedView> {
+/**
+ * Skin for {@link MaskedView}.
+ * <p>
+ * The skin places the view content in a stack pane clipped by left, center, and right rectangles; the edge clips switch
+ * between solid and gradient fills to fade overflowing translated content.
+ */
+public class MaskedViewSkin extends GemsSkinBase<MaskedView> {
 
     private final Rectangle leftClip;
     private final Rectangle rightClip;
@@ -21,6 +26,11 @@ public class MaskedViewSkin extends SkinBase<MaskedView> {
 
     private final StackPane stackPane;
 
+    /**
+     * Creates a skin for the given masked view.
+     *
+     * @param view the masked view rendered by this skin
+     */
     public MaskedViewSkin(MaskedView view) {
         super(view);
 
@@ -43,12 +53,12 @@ public class MaskedViewSkin extends SkinBase<MaskedView> {
 
         getChildren().add(stackPane);
 
-        view.contentProperty().addListener((observable, oldContent, newContent) -> buildView(oldContent, newContent));
+        register(view.contentProperty(), (observable, oldContent, newContent) -> buildView(oldContent, newContent));
         buildView(null, view.getContent());
 
-        view.widthProperty().addListener(it -> updateClip());
+        register(view.widthProperty(), it -> updateClip());
 
-        view.fadingSizeProperty().addListener(it -> updateClip());
+        register(view.fadingSizeProperty(), it -> updateClip());
     }
 
     @Override

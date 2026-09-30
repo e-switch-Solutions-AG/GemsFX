@@ -11,8 +11,7 @@ import com.dlsc.gemsfx.treeview.link.QuadCurveLink;
 import com.dlsc.gemsfx.treeview.link.SimpleCatmullRomLink;
 import com.dlsc.gemsfx.treeview.link.SineWaveDecayLink;
 import com.dlsc.gemsfx.treeview.link.StraightLineLink;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
+import com.dlsc.gemsfx.util.EnumStringConverter;
 import javafx.geometry.HPos;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
@@ -31,17 +30,23 @@ import javafx.util.StringConverter;
 import java.util.List;
 import java.util.Objects;
 
-public class TreeNodeViewApp extends Application {
+public class TreeNodeViewApp extends GemApplication {
 
     @Override
     public void start(Stage primaryStage) {
+        super.start(primaryStage);
+
         TreeNodeView<String> treePane = new TreeNodeView<>();
         treePane.setVgap(50);
         treePane.setHgap(10);
         treePane.setRowAlignment(VPos.TOP);
         TreeNode<String> root = createTree();
         treePane.setRoot(root);
-        treePane.setStyle("-fx-border-color: #4da2d2;-fx-background-color: #e0e7ec;-fx-padding: 10px;");
+        if (Boolean.getBoolean("atlantafx")) {
+            treePane.setStyle("-fx-border-color: -color-border-default;-fx-background-color: -color-bg-inset;-fx-padding: 10px;");
+        } else {
+            treePane.setStyle("-fx-border-color: #4da2d2;-fx-background-color: #e0e7ec;-fx-padding: 10px;");
+        }
         BorderPane parent = new BorderPane(new ScrollPane(treePane));
 
         ComboBox<LinkStrategy<String>> linkStrategyComboBox = new ComboBox<>();
@@ -84,6 +89,7 @@ public class TreeNodeViewApp extends Application {
 
         ComboBox<TreeNodeView.LayoutType> layoutTypeComboBox = new ComboBox<>();
         layoutTypeComboBox.getItems().setAll(TreeNodeView.LayoutType.values());
+        layoutTypeComboBox.setConverter(new EnumStringConverter<>());
         layoutTypeComboBox.setValue(TreeNodeView.LayoutType.REGULAR);
         treePane.layoutTypeProperty().bind(layoutTypeComboBox.valueProperty());
         VBox layoutTypeBox = createControlBox("Layout Type", layoutTypeComboBox);
@@ -120,6 +126,7 @@ public class TreeNodeViewApp extends Application {
 
         ComboBox<TreeNodeView.LayoutDirection> layoutDirectionComboBox = new ComboBox<>();
         layoutDirectionComboBox.getItems().setAll(TreeNodeView.LayoutDirection.values());
+        layoutDirectionComboBox.setConverter(new EnumStringConverter<>());
         layoutDirectionComboBox.setValue(TreeNodeView.LayoutDirection.TOP_TO_BOTTOM);
         treePane.layoutDirectionProperty().bind(layoutDirectionComboBox.valueProperty());
         VBox layoutDirectionBox = createControlBox("Layout Direction", layoutDirectionComboBox);
@@ -153,9 +160,8 @@ public class TreeNodeViewApp extends Application {
         Scene scene = new Scene(parent, 1280, 800);
         scene.getStylesheets().add(Objects.requireNonNull(TreeNodeViewApp.class.getResource("tree-node-view-app.css")).toExternalForm());
         primaryStage.setScene(scene);
-        primaryStage.show();
-        CSSFX.start();
 
+        primaryStage.show();
     }
 
     private Button createChangeRootBtn(TreeNodeView<String> treePane) {
@@ -216,7 +222,6 @@ public class TreeNodeViewApp extends Application {
 
         node2.getChildren().addAll(node21, node22);
 
-
         TreeNode<String> node31 = new TreeNode<>("C1");
         TreeNode<String> node32 = new TreeNode<>("C2");
         TreeNode<String> node33 = new TreeNode<>("C3");
@@ -230,7 +235,6 @@ public class TreeNodeViewApp extends Application {
 
         TreeNode<String> node211 = new TreeNode<>("B1-1");
         TreeNode<String> node212 = new TreeNode<>("B1-2");
-
 
         node21.getChildren().addAll(node211, node212);
 
@@ -268,7 +272,6 @@ public class TreeNodeViewApp extends Application {
         node2.getChildren().add(node12);
         node3.getChildren().add(node13);
 
-
         TreeNode<String> node121 = new TreeNode<>("Agent Concensus");
         node121.setName("agent");
         //node121.setExpanded(false);
@@ -276,7 +279,6 @@ public class TreeNodeViewApp extends Application {
 
         node11.getLinkedNodes().addAll(node121);
         node13.getLinkedNodes().add(node121);
-
 
         TreeNode<String> node1211 = new TreeNode<>("D0148  for MOP");
         TreeNode<String> node1212 = new TreeNode<>("D0148 for DC");

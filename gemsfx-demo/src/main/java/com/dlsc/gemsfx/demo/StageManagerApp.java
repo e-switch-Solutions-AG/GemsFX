@@ -2,25 +2,22 @@ package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.ScreensView;
 import com.dlsc.gemsfx.util.StageManager;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
-public class StageManagerApp extends Application {
+public class StageManagerApp extends GemApplication {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
 
         Label label = new Label("Stage Manager Test");
         StackPane stackPane = new StackPane(label);
         stackPane.setPadding(new Insets(20));
 
         Scene scene = new Scene(stackPane);
-        CSSFX.start();
 
         stage.setTitle("Stage Manager App");
         stage.setScene(scene);

@@ -1,8 +1,6 @@
 package com.dlsc.gemsfx.demo;
 
 import com.dlsc.gemsfx.util.ResizingBehaviour;
-import fr.brouillard.oss.cssfx.CSSFX;
-import javafx.application.Application;
 import javafx.beans.InvalidationListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -24,12 +22,12 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.controlsfx.control.CheckComboBox;
 
-public class ResizingBehaviourApp extends Application {
+public class ResizingBehaviourApp extends GemApplication {
 
     private ResizingBehaviour resizingSupport;
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) { super.start(stage);
         Label content = new Label("Content");
         content.setMouseTransparent(false);
         content.setStyle("-fx-background-color: orange;");
@@ -81,13 +79,12 @@ public class ResizingBehaviourApp extends Application {
         container.setBottom(controlsContainer);
 
         Scene scene = new Scene(container);
-        CSSFX.start(scene);
 
         stage.setTitle("Resizable Pane");
         stage.setScene(scene);
         stage.setWidth(1090);
         stage.setHeight(900);
-        stage.centerOnScreen();
+
         stage.show();
     }
 
