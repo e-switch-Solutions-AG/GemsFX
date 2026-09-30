@@ -1,6 +1,8 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.TimePickerSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
@@ -52,6 +54,11 @@ public class TimePicker extends CustomComboBox<LocalTime> {
      */
     public TimePicker() {
         getStyleClass().setAll("time-picker", "text-input");
+        AccessibilityUtil.setRole(this, javafx.scene.AccessibleRole.COMBO_BOX);
+        AccessibilityUtil.bindAccessibleText(this, Bindings.createStringBinding(() -> {
+            LocalTime time = getTime();
+            return time == null ? null : time.toString();
+        }, timeProperty()));
 
         setFocusTraversable(false);
 

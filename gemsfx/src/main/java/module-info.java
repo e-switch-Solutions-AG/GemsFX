@@ -22,9 +22,6 @@ open module ch.eswitch.gemsfx {
     requires org.kordamp.ikonli.materialdesign; // referenced in CSS files via -fx-icon-code, prefix "mdi-"
     requires org.kordamp.ikonli.bootstrapicons; // referenced in CSS files via -fx-icon-code, prefix "bi-"
 
-    requires java.logging;
-    requires java.prefs;
-
     requires net.synedra.validatorfx;
 
     requires com.dlsc.pickerfx;

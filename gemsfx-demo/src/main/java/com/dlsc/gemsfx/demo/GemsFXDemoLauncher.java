@@ -253,7 +253,7 @@ public class GemsFXDemoLauncher extends GemApplication {
     @Override
     public void start(Stage stage) {
         if (!WebAPI.isBrowser()) {
-            stage.initStyle(StageStyle.EXTENDED);
+            stage.initStyle(StageStyle.DECORATED);
         }
 
         super.start(stage);

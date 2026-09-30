@@ -1,13 +1,13 @@
 package com.dlsc.gemsfx;
 
 import com.dlsc.gemsfx.skins.EmailFieldSkin;
+import com.dlsc.gemsfx.util.AccessibilityUtil;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ListProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleListProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -21,28 +21,44 @@ import javafx.css.Styleable;
 import javafx.css.StyleableBooleanProperty;
 import javafx.css.StyleableProperty;
 import javafx.css.converter.BooleanConverter;
+import javafx.scene.AccessibleRole;
 import javafx.scene.control.Control;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Skin;
 import javafx.util.Callback;
-import org.apache.commons.lang3.StringUtils;
-import org.controlsfx.control.textfield.CustomTextField;
+import com.dlsc.gemsfx.util.EmailValidator;
+import com.dlsc.gemsfx.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Pattern;
+import java.util.StringTokenizer;
+import java.util.function.Predicate;
+import com.dlsc.gemsfx.util.ResourceBundleManager;
 
 /**
  * EmailField is a custom control for inputting and validating email addresses.
- * It extends the base Control class and provides additional functionalities:
- * <p>
- * 1. Automatic email domain suggestions to enhance user experience. <br>
- * 2. Email address format validation to ensure input validity. <br>
- * 3. Customizable properties to control the visibility of user interface elements,
- * such as mail and validation icons, according to specific user interface requirements.
+ * It provides the following functionalities:
+ * <ul>
+ *     <li>Automatic email domain suggestions to enhance user experience.</li>
+ *     <li>Email address format validation to ensure input validity.</li>
+ *     <li>Customizable properties to control the visibility of user interface elements, such as mail and validation icons, according to specific user interface requirements.</li>
+ * </ul>
+ *
+ * <p><b>CSS Styleable Properties:</b>
+ * <table class="striped">
+ *   <caption>CSS Properties</caption>
+ *   <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+ *   <tbody>
+ *     <tr><td>{@code -fx-auto-domain-completion-enabled}</td><td>{@code boolean}</td><td>Whether auto domain completion is enabled</td></tr>
+ *     <tr><td>{@code -fx-required}</td><td>{@code boolean}</td><td>Whether the field is required</td></tr>
+ *     <tr><td>{@code -fx-show-mail-icon}</td><td>{@code boolean}</td><td>Whether to show the mail icon</td></tr>
+ *     <tr><td>{@code -fx-show-validation-icon}</td><td>{@code boolean}</td><td>Whether to show the validation icon</td></tr>
+ *     <tr><td>{@code -fx-supporting-multiple-addresses}</td><td>{@code boolean}</td><td>Whether multiple email addresses are supported</td></tr>
+ *   </tbody>
+ * </table>
  */
 public class EmailField extends Control {
 
@@ -53,10 +69,6 @@ public class EmailField extends Control {
     private static final PseudoClass VALID_PSEUDO_CLASS = PseudoClass.getPseudoClass("valid");
     private static final PseudoClass INVALID_PSEUDO_CLASS = PseudoClass.getPseudoClass("invalid");
 
-    // Define the email validation pattern
-    private static final Pattern EMAIL_PATTERN = Pattern.compile(
-            "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,6}$", Pattern.CASE_INSENSITIVE);
-
     private final CustomTextField editor = new CustomTextField() {
         @Override
         public String getUserAgentStylesheet() {
@@ -64,8 +76,49 @@ public class EmailField extends Control {
         }
     };
 
+    // emailValidator
+
+    private final ObjectProperty<Predicate<String>> emailValidator = new SimpleObjectProperty<>(
+            this, "emailValidator", EmailValidator.getInstance()::isValid);
+
+    /**
+     * Returns the predicate used to decide whether an individual email address string is valid.
+     * Defaults to {@link EmailValidator#getInstance()}.
+     *
+     * @return the email validator predicate
+     */
+    public final Predicate<String> getEmailValidator() {
+        return emailValidator.get();
+    }
+
+    /**
+     * A pluggable validator for email address strings.
+     * Assign any {@link Predicate}{@code <String>} to replace the built-in validation logic.
+     * The binding that drives {@link #validProperty()} re-evaluates automatically when this
+     * property changes.
+     *
+     * @return the email validator property
+     */
+    public final ObjectProperty<Predicate<String>> emailValidatorProperty() {
+        return emailValidator;
+    }
+
+    /**
+     * Sets the predicate used to validate individual email address strings.
+     *
+     * @param emailValidator the new validator; must not be {@code null}
+     */
+    public final void setEmailValidator(Predicate<String> emailValidator) {
+        this.emailValidator.set(emailValidator);
+    }
+
+    /**
+     * Constructs a new email field.
+     */
     public EmailField() {
         getStyleClass().add("email-field");
+        AccessibilityUtil.setRole(this, AccessibleRole.TEXT_FIELD);
+        AccessibilityUtil.bindAccessibleText(this, emailAddressProperty());
 
         setFocusTraversable(false);
 
@@ -75,26 +128,80 @@ public class EmailField extends Control {
             }
         });
 
-        valid.bind(Bindings.createBooleanBinding(() -> {
-            if (isRequired()) {
-                return isValidEmail(getEmailAddress());
+        emailAddress.addListener(it -> {
+            if (StringUtils.isNotBlank(getEmailAddress())) {
+                editor.setText(getEmailAddress());
             }
-            return StringUtils.isBlank(getEmailAddress()) || isValidEmail(getEmailAddress());
-        }, emailAddressProperty(), requiredProperty()));
+        });
+
+        supportingMultipleAddresses.addListener((obs, oldV, newV) -> {
+            if (newV) {
+                if (StringUtils.isNotBlank(getEmailAddress())) {
+                    getMultipleEmailAddresses().setAll(getEmailAddress());
+                }
+            } else {
+                if (!getMultipleEmailAddresses().isEmpty()) {
+                    setEmailAddress(getMultipleEmailAddresses().get(0));
+                }
+            }
+        });
+
+        valid.bind(Bindings.createBooleanBinding(() -> {
+            List<String> addresses = new ArrayList<>();
+
+            String text = editor.getText();
+
+            if (isSupportingMultipleAddresses()) {
+                if (isRequired() && StringUtils.isBlank(text)) {
+                    return false;
+                } else {
+                    StringTokenizer st = new StringTokenizer(text, ",");
+
+                    while (st.hasMoreTokens()) {
+                        String token = st.nextToken().trim();
+                        if (!getEmailValidator().test(token)) {
+                            getMultipleEmailAddresses().setAll(addresses);
+                            return false;
+                        }
+
+                        addresses.add(token);
+                    }
+
+                    getMultipleEmailAddresses().setAll(addresses);
+
+                    return true;
+                }
+            } else {
+                boolean valid;
+                if (isRequired()) {
+                    valid = getEmailValidator().test(text);
+                } else {
+                    valid = StringUtils.isBlank(text) || getEmailValidator().test(text);
+                }
+
+                if (valid) {
+                    setEmailAddress(text);
+                } else {
+                    setEmailAddress(null);
+                }
+
+                return valid;
+            }
+        }, editor.textProperty(), requiredProperty(), emailValidatorProperty()));
 
         updateValidPseudoClass(false);
 
         valid.getReadOnlyProperty().addListener((ob, ov, newValue) -> updateValidPseudoClass(newValue));
     }
 
+    /**
+     * Constructs a new email field with the given initial email address.
+     *
+     * @param emailAddress the initial email address
+     */
     public EmailField(String emailAddress) {
         this();
         setEmailAddress(emailAddress);
-    }
-
-    private void updateValidPseudoClass(Boolean isValid) {
-        pseudoClassStateChanged(VALID_PSEUDO_CLASS, isValid);
-        pseudoClassStateChanged(INVALID_PSEUDO_CLASS, !isValid);
     }
 
     @Override
@@ -107,6 +214,16 @@ public class EmailField extends Control {
         return Objects.requireNonNull(EmailField.class.getResource("email-field.css")).toExternalForm();
     }
 
+    private void updateValidPseudoClass(Boolean isValid) {
+        pseudoClassStateChanged(VALID_PSEUDO_CLASS, isValid);
+        pseudoClassStateChanged(INVALID_PSEUDO_CLASS, !isValid);
+    }
+
+    /**
+     * Returns the text field used for editing purposes.
+     *
+     * @return the editor text field
+     */
     public final CustomTextField getEditor() {
         return editor;
     }
@@ -122,6 +239,11 @@ public class EmailField extends Control {
         return domainList.get();
     }
 
+    /**
+     * Stores a list of known domains that are often used for email addreses, e.g. gmail.com or outlook.com.
+     *
+     * @return list of known domains
+     */
     public final ListProperty<String> domainListProperty() {
         return domainList;
     }
@@ -130,22 +252,44 @@ public class EmailField extends Control {
         this.domainList.set(domainList);
     }
 
+    // multiple addresses
+
     // autoDomainCompletionEnabled
 
     private BooleanProperty autoDomainCompletionEnabled;
 
-    public final boolean getAutoDomainCompletionEnabled() {
+    public final boolean isAutoDomainCompletionEnabled() {
         return autoDomainCompletionEnabled == null ? DEFAULT_AUTO_DOMAIN_COMPLETION_ENABLED : autoDomainCompletionEnabled.get();
     }
 
     /**
      * Property for enabling or disabling the auto-completion of email domains.
+     * <p>
+     * Can be set via CSS using the {@code -fx-auto-domain-completion-enabled} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code true}.
+     * </p>
      *
-     * @return The BooleanProperty representing the state of auto domain completion.
+     * @return the property
      */
     public final BooleanProperty autoDomainCompletionEnabledProperty() {
         if (autoDomainCompletionEnabled == null) {
-            autoDomainCompletionEnabled = new SimpleBooleanProperty(this, "autoDomainCompletionEnabled", DEFAULT_AUTO_DOMAIN_COMPLETION_ENABLED);
+            autoDomainCompletionEnabled = new StyleableBooleanProperty(DEFAULT_AUTO_DOMAIN_COMPLETION_ENABLED) {
+                @Override
+                public Object getBean() {
+                    return EmailField.this;
+                }
+
+                @Override
+                public String getName() {
+                    return "autoDomainCompletionEnabled";
+                }
+
+                @Override
+                public CssMetaData<? extends Styleable, Boolean> getCssMetaData() {
+                    return StyleableProperties.AUTO_DOMAIN_COMPLETION_ENABLED;
+                }
+            };
         }
         return autoDomainCompletionEnabled;
     }
@@ -181,12 +325,23 @@ public class EmailField extends Control {
 
     // required
 
-    private final BooleanProperty required = new SimpleBooleanProperty(this, "required", false);
+    private final StyleableBooleanProperty required = new SimpleStyleableBooleanProperty(StyleableProperties.REQUIRED, this, "required", false);
 
     public final boolean isRequired() {
         return required.get();
     }
 
+    /**
+     * A flag signalling that this is a required field. This flag will be taken into account when
+     * updating the state of the {@link #validProperty()}.
+     * <p>
+     * Can be set via CSS using the {@code -fx-required} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code false}.
+     * </p>
+     *
+     * @return the property
+     */
     public final BooleanProperty requiredProperty() {
         return required;
     }
@@ -203,6 +358,11 @@ public class EmailField extends Control {
         return promptText.get();
     }
 
+    /**
+     * The prompt text to display by the editor.
+     *
+     * @return the prompt text
+     */
     public final StringProperty promptTextProperty() {
         return promptText;
     }
@@ -219,12 +379,68 @@ public class EmailField extends Control {
         return emailAddress.get();
     }
 
+    /**
+     * Stores a valid email address. This property will only be non-null if the user has entered
+     * a valid email address. This property is only used if the field is configured for entering a
+     * single address. If the field is configured for multiple email addresses then this field will
+     * be unused and the address list can be found in {@link #multipleEmailAddressesProperty()}.
+     *
+     * @return the entered email address
+     */
     public final StringProperty emailAddressProperty() {
         return emailAddress;
     }
 
     public final void setEmailAddress(String emailAddress) {
         this.emailAddress.set(emailAddress);
+    }
+
+    // multiple address support
+
+    private final StyleableBooleanProperty supportingMultipleAddresses = new SimpleStyleableBooleanProperty(StyleableProperties.SUPPORTING_MULTIPLE_ADDRESSES, this, "supportingMultipleAddresses", false);
+
+    public final boolean isSupportingMultipleAddresses() {
+        return supportingMultipleAddresses.get();
+    }
+
+    /**
+     * A control flag used to determine if the user should be able to enter more than one email address
+     * into the field.
+     * <p>
+     * Can be set via CSS using the {@code -fx-supporting-multiple-addresses} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code false}.
+     * </p>
+     *
+     * @return the property
+     */
+    public final BooleanProperty supportingMultipleAddressesProperty() {
+        return supportingMultipleAddresses;
+    }
+
+    public final void setSupportingMultipleAddresses(boolean supportingMultipleAddresses) {
+        this.supportingMultipleAddresses.set(supportingMultipleAddresses);
+    }
+
+    private final ListProperty<String> multipleEmailAddresses = new SimpleListProperty<>(this, "multipleEmailAddresses", FXCollections.observableArrayList());
+
+    public final ObservableList<String> getMultipleEmailAddresses() {
+        return multipleEmailAddresses.get();
+    }
+
+    /**
+     * Stores the list of valid email addresses entered by the user. This list is only used when the
+     * field supports entering multiple addresses.
+     *
+     * @return the list of valid email addresses
+     * @see #supportingMultipleAddressesProperty()
+     */
+    public final ListProperty<String> multipleEmailAddressesProperty() {
+        return multipleEmailAddresses;
+    }
+
+    public final void setMultipleEmailAddresses(ObservableList<String> multipleEmailAddresses) {
+        this.multipleEmailAddresses.set(multipleEmailAddresses);
     }
 
     // valid support
@@ -235,12 +451,19 @@ public class EmailField extends Control {
         return valid.get();
     }
 
+    /**
+     * A boolean flag used to indicate whether the field is currently in a valid state. The field is
+     * in a valid state when the entered email addresses are all structurally valid (obviously this does
+     * not mean that they do exist, only that they have the proper format).
+     *
+     * @return a boolean property signalling validity
+     */
     public final ReadOnlyBooleanProperty validProperty() {
         return valid.getReadOnlyProperty();
     }
 
     // Property for the tooltip text displayed when hovering over the icon indicating an invalid email address.
-    private final StringProperty invalidText = new SimpleStringProperty(this, "invalidText", "Email address is invalid.");
+    private final StringProperty invalidText = new SimpleStringProperty(this, "invalidText", ResourceBundleManager.getString(ResourceBundleManager.BundleType.EMAIL_FIELD, "validation.invalid-email", "Invalid email address."));
 
     /**
      * Retrieves the tooltip text displayed when the email address validation fails and the user hovers over the invalid icon.
@@ -284,6 +507,13 @@ public class EmailField extends Control {
 
     /**
      * Property for handling the mail icon visibility.
+     * <p>
+     * Can be set via CSS using the {@code -fx-show-mail-icon} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code true}.
+     * </p>
+     *
+     * @return the show mail icon property
      */
     public final BooleanProperty showMailIconProperty() {
         return showMailIcon;
@@ -313,6 +543,13 @@ public class EmailField extends Control {
 
     /**
      * Property for handling the validation icon visibility.
+     * <p>
+     * Can be set via CSS using the {@code -fx-show-validation-icon} property.
+     * Valid values are: {@code true} or {@code false}.
+     * The default value is {@code true}.
+     * </p>
+     *
+     * @return the show validation icon property
      */
     public final BooleanProperty showValidationIconProperty() {
         return showValidationIcon;
@@ -328,6 +565,48 @@ public class EmailField extends Control {
     }
 
     private static class StyleableProperties {
+
+        private static final CssMetaData<EmailField, Boolean> AUTO_DOMAIN_COMPLETION_ENABLED = new CssMetaData<>(
+                "-fx-auto-domain-completion-enabled", BooleanConverter.getInstance(), DEFAULT_AUTO_DOMAIN_COMPLETION_ENABLED) {
+
+            @Override
+            public StyleableProperty<Boolean> getStyleableProperty(EmailField control) {
+                return (StyleableProperty<Boolean>) control.autoDomainCompletionEnabledProperty();
+            }
+
+            @Override
+            public boolean isSettable(EmailField control) {
+                return control.autoDomainCompletionEnabled == null || !control.autoDomainCompletionEnabled.isBound();
+            }
+        };
+
+        private static final CssMetaData<EmailField, Boolean> SUPPORTING_MULTIPLE_ADDRESSES = new CssMetaData<>(
+                "-fx-supporting-multiple-addresses", BooleanConverter.getInstance(), false) {
+
+            @Override
+            public StyleableProperty<Boolean> getStyleableProperty(EmailField control) {
+                return (StyleableProperty<Boolean>) control.supportingMultipleAddressesProperty();
+            }
+
+            @Override
+            public boolean isSettable(EmailField control) {
+                return !control.supportingMultipleAddresses.isBound();
+            }
+        };
+
+        private static final CssMetaData<EmailField, Boolean> REQUIRED = new CssMetaData<>(
+                "-fx-required", BooleanConverter.getInstance(), false) {
+
+            @Override
+            public StyleableProperty<Boolean> getStyleableProperty(EmailField control) {
+                return (StyleableProperty<Boolean>) control.requiredProperty();
+            }
+
+            @Override
+            public boolean isSettable(EmailField control) {
+                return !control.required.isBound();
+            }
+        };
 
         private static final CssMetaData<EmailField, Boolean> SHOW_MAIL_ICON = new CssMetaData<>(
                 "-fx-show-mail-icon", BooleanConverter.getInstance(), DEFAULT_SHOW_MAIL_ICON) {
@@ -361,7 +640,8 @@ public class EmailField extends Control {
 
         static {
             final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(Control.getClassCssMetaData());
-            Collections.addAll(styleables, SHOW_MAIL_ICON, SHOW_VALIDATION_ICON);
+            Collections.addAll(styleables, SHOW_MAIL_ICON, SHOW_VALIDATION_ICON,
+                    AUTO_DOMAIN_COMPLETION_ENABLED, SUPPORTING_MULTIPLE_ADDRESSES, REQUIRED);
             STYLEABLES = Collections.unmodifiableList(styleables);
         }
     }
@@ -371,12 +651,12 @@ public class EmailField extends Control {
         return getClassCssMetaData();
     }
 
+    /**
+     * Returns the CSS metadata for this control class.
+     *
+     * @return the CSS metadata for this control class
+     */
     public static List<CssMetaData<? extends Styleable, ?>> getClassCssMetaData() {
         return StyleableProperties.STYLEABLES;
-    }
-
-    // Custom email validation method
-    private boolean isValidEmail(String email) {
-        return EMAIL_PATTERN.matcher(email).matches();
     }
 }
