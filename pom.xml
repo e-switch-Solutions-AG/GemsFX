@@ -62,12 +62,38 @@
         <jruby.version>9.2.6.0</jruby.version>
     </properties>
 
+    <repositories>
+        <repository>
+            <!-- Artifactory repository server on e-switch AWS -->
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>eswitch-artifactory-release</id>
+            <name>artifactory-release-local</name>
+            <url>https://artifactory.e-switch.ch/artifactory/libs-release-local/</url>
+        </repository>
+        <repository>
+            <!-- Artifactory repository server on e-switch AWS -->
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <id>eswitch-artifactory-snapshot</id>
+            <name>artifactory-snapshot-local</name>
+            <url>https://artifactory.e-switch.ch/artifactory/libs-snapshot-local</url>
+        </repository>
+    </repositories>
+
     <distributionManagement>
         <repository>
-            <id>github</id>
-            <name>eswitch</name>
-            <url>https://maven.pkg.github.com/alialkubaisi/GemsFX</url>
+            <id>eswitch-artifactory-release</id>
+            <name>libs-release-local</name>
+            <url>https://artifactory.e-switch.ch/artifactory/libs-release-local</url>
         </repository>
+        <snapshotRepository>
+            <id>eswitch-artifactory-snapshot</id>
+            <name>libs-snapshot-local</name>
+            <url>https://artifactory.e-switch.ch/artifactory/libs-snapshot-local/</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <dependencyManagement>
